@@ -97,19 +97,28 @@ Google Spreadsheet（單一試算表，SDI / HDC 各自獨立分頁）
 - 可編輯（修改後重新試算金額）或刪除（軟刪除）**當月**紀錄
 - 跨月的舊紀錄不可自行修改，僅能請管理後台（Wei）處理
 
+## 管理後台安全機制（網站已公開部署，新增設計）
+
+網站部署在 GitHub Pages（public repo），任何人都能開啟 `admin.html`，因此管理後台需要一道後端強制的密碼保護，而不只是靠網址參數隱藏：
+
+- 管理密碼存在 GAS 的 **Script Properties**（`PropertiesService.getScriptProperties()`），不寫在 Google Sheet 或前端程式碼裡
+- `admin.html` 進入時跳出輸入框要求密碼，成功後存在瀏覽器 `sessionStorage`，之後每個管理動作的 API 呼叫都夾帶這組密碼（例如 payload 裡的 `adminPin` 欄位）
+- 每一個 `adminXxx` action 在 GAS 端開頭都要驗證 `payload.adminPin` 是否等於 Script Properties 裡存的密碼，不對就回傳 `{ok:false, error:'密碼錯誤'}` 並拒絕執行——真正的防護在後端驗證，前端輸入框只是收集密碼，不能被略過
+
 ## 管理後台（admin.html?mode=admin）
 
-- 檢視/篩選（依專案、年月、姓名）/編輯/刪除任一筆紀錄，含跨月舊紀錄
+- 檢視/篩選（依專案、年月、姓名，可切換是否顯示已刪除）/編輯/刪除任一筆紀錄，含跨月舊紀錄——管理後台可編輯的欄位比工程師版「我的紀錄」更完整，包含日期、Dispatch No.、Project、角色、單價，因為管理者需要能修正工程師填錯的情況
 - 新增固定費用列（Warehouse fee 等非個人派工費用）
-- 維護工程師名單（新增/停用）
+- 維護工程師名單（新增姓名、切換啟用/停用，不刪除以保留歷史）
 - 維護 `設定` 分頁（Dispatch No. 前綴、Engineer/Worker 單價）
 - 產生月結算 Excel（見下）
 
 ## 月結算 Excel 匯出
 
 - 管理後台選專案 + 年月 + 輸入當月美金匯率，按下「產生 Excel」
-- 試算表內預先建立與現有範例格式相同的「匯出樣板」分頁（多層表頭、合併儲存格、欄位公式），GAS 複製一份樣板、依序貼入該年月的派工紀錄與固定費用列、寫入 `Total = SUM(Amount)`、`EXCHANGE RATE` 手動填入的匯率、`FINAL TOTAL = Total ÷ Rate` 公式
-- 透過 Google Sheets 匯出 API 將該分頁轉成 `.xlsx` 回傳前端下載
+- 匯出樣板由 **GAS 程式碼動態建立**（不需要人工在 Sheet 裡手動排版）：程式建立一個暫存分頁，寫入與現有範例相同的多層表頭、合併儲存格，資料列的計算欄位一律用儲存格公式（例如稅前單價欄寫 `=G5/1.05`，而非寫死數字），維持與原始 Excel 一致的「打開後還能看到公式、可手動微調」的特性
+- 依日期排序填入該年月所有「狀態=正常」的派工紀錄與固定費用列，寫入 `Total = SUM(Amount)`、`EXCHANGE RATE`（手動輸入的匯率）、`FINAL TOTAL = Total ÷ Rate` 公式
+- 透過 Google Sheets 匯出端點（`/export?format=xlsx&gid=...`）搭配 `UrlFetchApp` 把該暫存分頁轉成 `.xlsx` 內容，用 base64 回傳前端觸發下載，匯出後刪除暫存分頁
 - 檔名比照現況：`{SDI|HDC} dispatch payment detail_CSI{yymm}.xlsx`
 
 ## GAS API Actions（規劃）
