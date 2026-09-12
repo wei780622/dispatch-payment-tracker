@@ -81,6 +81,12 @@ function assertFiniteNumber_(value, fieldName) {
   }
 }
 
+function assertNonEmptyString_(value, fieldName) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('欄位 ' + fieldName + ' 不可為空');
+  }
+}
+
 function buildDispatchRecord(input, settings, existingRecords, nowISO) {
   if (!settings.hasOwnProperty(input.project)) {
     throw new Error('未知的專案：' + input.project);
@@ -88,6 +94,9 @@ function buildDispatchRecord(input, settings, existingRecords, nowISO) {
   assertFiniteNumber_(input.overtimeHours, '加班時數');
   assertFiniteNumber_(input.transportation, '交通費');
   assertFiniteNumber_(input.lodging, '住宿費');
+  assertNonEmptyString_(input.siteName, '案場名稱');
+  assertNonEmptyString_(input.origin, '出發地');
+  assertNonEmptyString_(input.destination, '抵達地');
 
   var hours = hoursFromTimes(input.startTime, input.endTime);
   if (!isStandardHours(hours) && !input.forceSubmit) {
@@ -150,7 +159,12 @@ function buildDispatchRecord(input, settings, existingRecords, nowISO) {
     '住宿費': input.lodging,
     '交通住宿小計': tlSubtotal,
     '合計': total,
-    '狀態': '正常'
+    '狀態': '正常',
+    '案場名稱': input.siteName,
+    '出發地': input.origin,
+    '抵達地': input.destination,
+    '途經': (input.viaPoints || []).join(' | '),
+    'PDF網址': ''
   };
 
   return { ok: true, needsConfirmation: false, record: record };
