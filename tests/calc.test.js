@@ -36,3 +36,30 @@ test('isStandardHours：4 或 8 小時視為正常，其他要跳出確認', () 
   assert.equal(calc.isStandardHours(6), false);
   assert.equal(calc.isStandardHours(9), false);
 });
+
+test('markup：單價 9200、天數 1 => 438.0952380952381（現有 SDI 範例）', () => {
+  const result = calc.markup(9200, 1);
+  assert.ok(Math.abs(result - 438.0952380952381) < 1e-9);
+});
+
+test('serviceSubtotal：單價 9200、天數 1、無加班 => 9200（現有 SDI 範例）', () => {
+  const result = calc.serviceSubtotal(9200, 1, 0);
+  assert.ok(Math.abs(result - 9200) < 1e-9);
+});
+
+test('overtimePay：單價 9200、加班 2 小時 => 2935.2380952380954', () => {
+  const result = calc.overtimePay(9200, 2);
+  assert.ok(Math.abs(result - 2935.2380952380954) < 1e-6);
+});
+
+test('serviceSubtotal：單價 9200、天數 1、加班 2 小時 => 12135.238095238095', () => {
+  const result = calc.serviceSubtotal(9200, 1, 2);
+  assert.ok(Math.abs(result - 12135.238095238095) < 1e-6);
+});
+
+test('transportLodgingSubtotal 與 amount：交通 3495、住宿 0 => 合計 12695（現有 SDI 範例）', () => {
+  const tl = calc.transportLodgingSubtotal(3495, 0);
+  assert.equal(tl, 3495);
+  const total = calc.amount(9200, tl);
+  assert.equal(total, 12695);
+});
