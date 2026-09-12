@@ -64,7 +64,7 @@ test('buildAdminRecordUpdate：派工列可以改日期/派工單號/角色/單�
   assert.equal(result.record['Project'], '改過的案場');
   assert.equal(result.record['角色'], 'Worker');
   assert.equal(result.record['單價'], 7000);
-  assert.ok(Math.abs(result.record['稅前單價'] - 6666.666666666666) < 1e-6);
+  assert.equal(result.record['稅前單價'], 6666.67);
   assert.equal(result.record['修改時間'], '2026-08-01T00:00:00.000Z');
 });
 
