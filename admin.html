@@ -37,7 +37,7 @@
 
       <table id="recTable">
         <thead>
-          <tr><th>日期</th><th>DispatchNo</th><th>Project</th><th>姓名</th><th>角色</th><th>單價</th><th>合計</th><th>狀態</th><th></th></tr>
+          <tr><th>日期</th><th>類型</th><th>DispatchNo</th><th>Project</th><th>姓名</th><th>角色</th><th>單價</th><th>合計</th><th>狀態</th><th></th></tr>
         </thead>
         <tbody id="recBody"></tbody>
       </table>
@@ -101,6 +101,7 @@
 
     function refreshSettings() {
       adminCallApi('adminGetSettings', {}).then(function (res) {
+        if (!res.ok) { alert('讀取設定失敗：' + res.error); return; }
         currentSettings = res.settings;
         const container = document.getElementById('settingsForm');
         container.innerHTML = '';
@@ -113,7 +114,7 @@
             'Worker <input type="number" id="worker_' + project + '" value="' + currentSettings[project].rates.Worker + '">';
           container.appendChild(div);
         });
-      });
+      }).catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
     }
 
     document.getElementById('settingsSaveBtn').addEventListener('click', function () {
@@ -201,7 +202,7 @@
       body.innerHTML = '';
       currentRecords.forEach(function (r) {
         const tr = document.createElement('tr');
-        const cells = [r['Date'], r['DispatchNo'], r['Project'], r['姓名'], r['角色'], r['單價'], r['合計'], r['狀態']];
+        const cells = [r['Date'], r['類型'], r['DispatchNo'], r['Project'], r['姓名'], r['角色'], r['單價'], r['合計'], r['狀態']];
         cells.forEach(function (value) {
           const td = document.createElement('td');
           td.textContent = value;
@@ -224,8 +225,13 @@
     function showEditForm(tr, record) {
       const editRow = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 9;
-      const fields = [
+      td.colSpan = 10;
+      const isFee = record['類型'] === '固定費用';
+      const fields = isFee ? [
+        { key: 'date', label: '日期', value: record['Date'] },
+        { key: 'description', label: '說明', value: record['姓名'] },
+        { key: 'amount', label: '金額', value: record['合計'] }
+      ] : [
         { key: 'date', label: '日期', value: record['Date'] },
         { key: 'dispatchNo', label: 'DispatchNo', value: record['DispatchNo'] },
         { key: 'project', label: 'Project', value: record['Project'] },
@@ -248,7 +254,11 @@
       const saveBtn = document.createElement('button');
       saveBtn.textContent = '儲存';
       saveBtn.addEventListener('click', function () {
-        const edits = {
+        const edits = isFee ? {
+          date: inputs.date.value,
+          description: inputs.description.value,
+          amount: Number(inputs.amount.value)
+        } : {
           date: inputs.date.value,
           dispatchNo: inputs.dispatchNo.value,
           project: inputs.project.value,
@@ -319,6 +329,7 @@
     function refreshEngineers() {
       adminCallApi('adminGetEngineers', { project: document.getElementById('engProject').value })
         .then(function (res) {
+          if (!res.ok) { alert('讀取工程師名單失敗：' + res.error); return; }
           const body = document.getElementById('engBody');
           body.innerHTML = '';
           (res.engineers || []).forEach(function (e) {
@@ -337,7 +348,8 @@
             tr.appendChild(toggleTd);
             body.appendChild(tr);
           });
-        });
+        })
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
     }
 
     document.getElementById('siteRefreshBtn').addEventListener('click', refreshSites);
@@ -357,6 +369,7 @@
     function refreshSites() {
       adminCallApi('adminGetSites', { project: document.getElementById('siteProject').value })
         .then(function (res) {
+          if (!res.ok) { alert('讀取案場名單失敗：' + res.error); return; }
           const body = document.getElementById('siteBody');
           body.innerHTML = '';
           (res.sites || []).forEach(function (s) {
@@ -375,7 +388,8 @@
             tr.appendChild(toggleTd);
             body.appendChild(tr);
           });
-        });
+        })
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
     }
   </script>
 </body>
