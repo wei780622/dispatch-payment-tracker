@@ -125,7 +125,7 @@ test('buildDispatchRecord：SDI 新增派工，工時 8 小時，比對現有範
     chosenRole: null,
     siteName: '龍井廠', origin: '中華系統整合股份有限公司國分辦公室', destination: '台泥龍井廠',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: 0, transportation: 3495, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 3495, kilometers: 0, lodging: 0, forceSubmit: false
   };
   const result = dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z');
   assert.equal(result.ok, true);
@@ -143,6 +143,23 @@ test('buildDispatchRecord：SDI 新增派工，工時 8 小時，比對現有範
   assert.equal(result.record['途經'], '');
 });
 
+test('buildDispatchRecord：公里數會用每公里 15 元併入交通住宿小計/合計，但「交通費」「公里數」欄位各自保留原始輸入值（不會被合併覆蓋）', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 100, kilometers: 20, lodging: 0, forceSubmit: false
+  };
+  const result = dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z');
+  assert.equal(result.ok, true);
+  assert.equal(result.record['交通費'], 100);
+  assert.equal(result.record['公里數'], 20);
+  assert.equal(result.record['交通住宿小計'], 400);
+  assert.equal(result.record['合計'], 9600);
+});
+
 test('buildDispatchRecord：SDI 加入既有派工 => Worker/7000，沿用 DispatchNo/Project', () => {
   const existing = [
     { type: '派工', date: '2026-08-03', status: '正常', DispatchNo: 'PR26A014-260803-A', Project: '260803_USES Taya Longjing 2', 姓名: '莊志傳' }
@@ -153,7 +170,7 @@ test('buildDispatchRecord：SDI 加入既有派工 => Worker/7000，沿用 Dispa
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:20', startTime: '08:40', endTime: '17:20',
-    overtimeHours: 0, transportation: 591, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 591, kilometers: 0, lodging: 0, forceSubmit: false
   };
   const result = dispatch.buildDispatchRecord(input, settings, existing, '2026-08-03T09:00:00.000Z');
   assert.equal(result.ok, true);
@@ -170,7 +187,7 @@ test('buildDispatchRecord：加入不存在或已滿的派工要丟錯誤', () =
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:20', startTime: '08:40', endTime: '17:20',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-08-03T09:00:00.000Z'), /not open|不open|找不到|無法加入/);
 });
@@ -186,7 +203,7 @@ test('buildDispatchRecord：加入已滿 2 人的派工要丟錯誤', () => {
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:20', startTime: '08:40', endTime: '17:20',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, existing, '2026-08-03T09:00:00.000Z'), /not open|不open|找不到|無法加入|已滿/);
 });
@@ -201,7 +218,7 @@ test('buildDispatchRecord：本人已經是該派工成員時，加入自己的�
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:20', startTime: '08:40', endTime: '17:20',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, existing, '2026-08-03T09:00:00.000Z'), /您已經在這個派工中/);
 });
@@ -213,7 +230,7 @@ test('buildDispatchRecord：未知的 project 要丟出清楚錯誤（不能讓 
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /未知的專案/);
 });
@@ -225,7 +242,7 @@ test('buildDispatchRecord：overtimeHours 非數字（null）要丟出清楚錯�
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: null, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: null, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /加班時數|overtimeHours/);
 });
@@ -237,9 +254,21 @@ test('buildDispatchRecord：transportation 非數字（字串）要丟出清楚�
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: 0, transportation: 'abc', lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 'abc', kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /交通費|transportation/);
+});
+
+test('buildDispatchRecord：kilometers 非數字（字串）要丟出清楚錯誤', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 0, kilometers: 'abc', lodging: 0, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /公里數/);
 });
 
 test('buildDispatchRecord：lodging 是 NaN 要丟出清楚錯誤', () => {
@@ -249,7 +278,7 @@ test('buildDispatchRecord：lodging 是 NaN 要丟出清楚錯誤', () => {
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: 0, transportation: 0, lodging: NaN, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: NaN, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /住宿費|lodging/);
 });
@@ -261,7 +290,7 @@ test('buildDispatchRecord：工時非 4/8 小時且未強制送出 => 回傳 nee
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '15:00', startTime: '08:30', endTime: '15:00',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   const result = dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z');
   assert.equal(result.ok, false);
@@ -276,7 +305,7 @@ test('buildDispatchRecord：工時非 4/8 小時但 forceSubmit=true => 照常�
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '15:00', startTime: '08:30', endTime: '15:00',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: true
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: true
   };
   const result = dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z');
   assert.equal(result.ok, true);
@@ -290,7 +319,7 @@ test('buildDispatchRecord：HDC 沒選角色要丟錯誤', () => {
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:00', startTime: '08:00', endTime: '16:00',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-08-03T09:00:00.000Z'), /chosenRole/);
 });
@@ -308,6 +337,40 @@ test('recalcRecordFields：修改交通費與加班時數後重新試算', () =>
   assert.equal(result.record['加班時數'], 1);
   assert.ok(Math.abs(result.record['交通住宿小計'] - 1000) < 1e-6);
   assert.ok(result.record['合計'] !== 12695);
+});
+
+test('recalcRecordFields：舊資料沒有「公里數」欄位時預設為 0（不會因為缺欄位而出錯或多扣錢）', () => {
+  const record = {
+    'RecordID': 'r1', '姓名': '林哲宇', '單價': 9200, '狀態': '正常', 'Date': '2026-07-07',
+    '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '工時': 8, '天數': 1, '加班時數': 0, '加班費': 0, 'mark up (5%)': 438.1,
+    '服務費小計': 9200, '交通費': 100, '住宿費': 0, '交通住宿小計': 100, '合計': 9300
+  };
+  const result = dispatch.recalcRecordFields(record, { overtimeHours: 0, forceSubmit: false });
+  assert.equal(result.ok, true);
+  assert.equal(result.record['交通住宿小計'], 100);
+});
+
+test('recalcRecordFields：修改公里數會用每公里 15 元重新併入交通住宿小計，「交通費」欄位維持原始輸入值不被覆蓋', () => {
+  const record = {
+    'RecordID': 'r1', '姓名': '林哲宇', '單價': 9200, '狀態': '正常', 'Date': '2026-07-07',
+    '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '工時': 8, '天數': 1, '加班時數': 0, '加班費': 0, 'mark up (5%)': 438.1,
+    '服務費小計': 9200, '交通費': 100, '公里數': 0, '住宿費': 0, '交通住宿小計': 100, '合計': 9300
+  };
+  const result = dispatch.recalcRecordFields(record, { kilometers: 20, forceSubmit: false });
+  assert.equal(result.ok, true);
+  assert.equal(result.record['交通費'], 100);
+  assert.equal(result.record['公里數'], 20);
+  assert.equal(result.record['交通住宿小計'], 400);
+});
+
+test('recalcRecordFields：edits 帶入非數字的 kilometers 要丟出清楚錯誤', () => {
+  const record = {
+    '單價': 9200, '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '公里數': 0, '住宿費': 0
+  };
+  assert.throws(() => dispatch.recalcRecordFields(record, { kilometers: 'abc' }), /公里數/);
 });
 
 test('recalcRecordFields：改成非 4/8 小時的時間且未強制 => needsConfirmation', () => {
@@ -370,7 +433,7 @@ test('buildDispatchRecord：途經多個地點會用 | 串接', () => {
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地', viaPoints: ['休息站A', '休息站B'],
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   const result = dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z');
   assert.equal(result.record['途經'], '休息站A | 休息站B');
@@ -383,7 +446,7 @@ test('buildDispatchRecord：不給途經時預設為空字串', () => {
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   const result = dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z');
   assert.equal(result.record['途經'], '');
@@ -396,7 +459,7 @@ test('buildDispatchRecord：缺少案場名稱要丟錯誤', () => {
     chosenRole: null,
     siteName: '', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /案場名稱/);
 });
@@ -408,7 +471,7 @@ test('buildDispatchRecord：缺少抵達地要丟錯誤', () => {
     chosenRole: null,
     siteName: '龍井廠', origin: '公司', destination: '',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
-    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+    overtimeHours: 0, transportation: 0, kilometers: 0, lodging: 0, forceSubmit: false
   };
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /抵達地/);
 });

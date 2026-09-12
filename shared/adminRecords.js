@@ -9,6 +9,7 @@ if (typeof require !== 'undefined') {
   var serviceSubtotal = calcLib.serviceSubtotal;
   var transportLodgingSubtotal = calcLib.transportLodgingSubtotal;
   var amount = calcLib.amount;
+  var transportationTotal = calcLib.transportationTotal;
 }
 
 function assertFiniteNumber_(value, fieldName) {
@@ -83,6 +84,7 @@ function buildAdminRecordUpdate(record, edits, nowISO) {
 
   if (edits.overtimeHours !== undefined) assertFiniteNumber_(edits.overtimeHours, '加班時數');
   if (edits.transportation !== undefined) assertFiniteNumber_(edits.transportation, '交通費');
+  if (edits.kilometers !== undefined) assertFiniteNumber_(edits.kilometers, '公里數');
   if (edits.lodging !== undefined) assertFiniteNumber_(edits.lodging, '住宿費');
   if (edits.unitPrice !== undefined) assertFiniteNumber_(edits.unitPrice, '單價');
 
@@ -97,6 +99,7 @@ function buildAdminRecordUpdate(record, edits, nowISO) {
   if (edits.endTime !== undefined) merged['下班時間'] = edits.endTime;
   if (edits.overtimeHours !== undefined) merged['加班時數'] = edits.overtimeHours;
   if (edits.transportation !== undefined) merged['交通費'] = edits.transportation;
+  if (edits.kilometers !== undefined) merged['公里數'] = edits.kilometers;
   if (edits.lodging !== undefined) merged['住宿費'] = edits.lodging;
 
   var hours = hoursFromTimes(merged['上班時間'], merged['下班時間']);
@@ -110,7 +113,8 @@ function buildAdminRecordUpdate(record, edits, nowISO) {
   var ot = overtimePay(rate, merged['加班時數']);
   var mk = markup(rate, dayCount);
   var svcSubtotal = serviceSubtotal(rate, dayCount, merged['加班時數']);
-  var tlSubtotal = transportLodgingSubtotal(merged['交通費'], merged['住宿費']);
+  var transportationFee = transportationTotal(merged['交通費'], merged['公里數'] || 0);
+  var tlSubtotal = transportLodgingSubtotal(transportationFee, merged['住宿費']);
   var total = amount(svcSubtotal, tlSubtotal);
 
   var updated = Object.assign({}, merged, {

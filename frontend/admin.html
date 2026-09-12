@@ -244,6 +244,7 @@
         { key: 'role', label: '角色', value: record['角色'] },
         { key: 'unitPrice', label: '單價', value: record['單價'] },
         { key: 'transportation', label: '交通費', value: record['交通費'] },
+        { key: 'kilometers', label: '公里數', value: record['公里數'] || 0 },
         { key: 'lodging', label: '住宿費', value: record['住宿費'] },
         { key: 'overtimeHours', label: '加班時數', value: record['加班時數'] }
       ];
@@ -271,6 +272,7 @@
           role: inputs.role.value,
           unitPrice: Number(inputs.unitPrice.value),
           transportation: Number(inputs.transportation.value),
+          kilometers: Number(inputs.kilometers.value),
           lodging: Number(inputs.lodging.value),
           overtimeHours: Number(inputs.overtimeHours.value)
         };

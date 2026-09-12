@@ -42,6 +42,10 @@ function transportLodgingSubtotal(transportation, lodging) {
   return transportation + lodging;
 }
 
+function transportationTotal(fee, kilometers) {
+  return fee + kilometers * 15;
+}
+
 function amount(serviceSubtotalValue, transportLodgingSubtotalValue) {
   return roundMoney_(serviceSubtotalValue + transportLodgingSubtotalValue);
 }
@@ -56,6 +60,7 @@ if (typeof module !== 'undefined' && module.exports) {
     markup: markup,
     serviceSubtotal: serviceSubtotal,
     transportLodgingSubtotal: transportLodgingSubtotal,
-    amount: amount
+    amount: amount,
+    transportationTotal: transportationTotal
   };
 }

@@ -44,6 +44,16 @@ test('buildExportRows：派工列產生正確的公式與數值（比對真實 S
   ]]);
 });
 
+test('buildExportRows：交通費欄位（R）要把公里數用每公里 15 元併入（舊資料沒有公里數時視為 0）', () => {
+  const records = [{
+    'DispatchNo': 'A', 'Project': 'p1', 'Date': '2026-07-07', '姓名': 'x', '單價': 9200,
+    '出發時間': '', '上班時間': '08:00', '下班時間': '17:00',
+    '加班時數': 0, '交通費': 100, '公里數': 20, '住宿費': 0, '類型': '派工'
+  }];
+  const rows = exportBuilder.buildExportRows(records, 5);
+  assert.equal(rows[0][17], 400);
+});
+
 test('buildExportRows：第二筆的公式要用正確的列號', () => {
   const records = [
     { 'DispatchNo': 'A', 'Project': 'p1', 'Date': '2026-07-07', '姓名': 'x', '單價': 9200, '出發時間': '', '上班時間': '08:00', '下班時間': '17:00', '加班時數': 0, '交通費': 0, '住宿費': 0, '類型': '派工' },
