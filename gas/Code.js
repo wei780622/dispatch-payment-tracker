@@ -317,6 +317,24 @@ function handleAdminDeleteRecord(payload) {
   }
 }
 
+function handleAdminAddFixedFee(payload) {
+  assertAdminPin_(payload);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var record = buildFixedFeeRecord(payload.input, new Date().toISOString());
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.project + '_紀錄');
+    record['RecordID'] = Utilities.getUuid();
+    record['No'] = sheet.getLastRow();
+    var rowArray = rowObjectToArray(HEADERS, record);
+    sheet.appendRow(rowArray);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
@@ -350,7 +368,8 @@ function doPost(e) {
     deleteMyRecord: handleDeleteMyRecord,
     adminGetRecords: handleAdminGetRecords,
     adminUpdateRecord: handleAdminUpdateRecord,
-    adminDeleteRecord: handleAdminDeleteRecord
+    adminDeleteRecord: handleAdminDeleteRecord,
+    adminAddFixedFee: handleAdminAddFixedFee
   };
   var handler = handlers[payload.action];
   if (!handler) {
