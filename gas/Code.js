@@ -54,7 +54,7 @@ function handleGetOpenDispatches(payload) {
   var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName(payload.project + '_紀錄');
   var records = readSheetAsObjects_(sheet).map(function (r) {
-    return { type: r['類型'], date: formatDateForCompare_(r['Date']), status: r['狀態'], DispatchNo: r['DispatchNo'], Project: r['Project'] };
+    return { type: r['類型'], date: formatDateForCompare_(r['Date']), status: r['狀態'], DispatchNo: r['DispatchNo'], Project: r['Project'], '姓名': r['姓名'] };
   });
   var openDispatches = findOpenDispatches(records, payload.date);
   return { ok: true, openDispatches: openDispatches };
@@ -89,7 +89,7 @@ function getRecordsForDispatchLogic_(project, dateISO) {
     .map(function (r) {
       return {
         type: r['類型'], date: formatDateForCompare_(r['Date']), status: r['狀態'],
-        DispatchNo: r['DispatchNo'], Project: r['Project']
+        DispatchNo: r['DispatchNo'], Project: r['Project'], '姓名': r['姓名']
       };
     });
 }
@@ -101,19 +101,25 @@ function handlePreviewRecord(payload) {
 }
 
 function handleSubmitRecord(payload) {
-  var settings = getSettings_();
-  var existing = getRecordsForDispatchLogic_(payload.input.project, payload.input.date);
-  var result = buildDispatchRecord(payload.input, settings, existing, new Date().toISOString());
-  if (!result.ok) {
-    return result;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var settings = getSettings_();
+    var existing = getRecordsForDispatchLogic_(payload.input.project, payload.input.date);
+    var result = buildDispatchRecord(payload.input, settings, existing, new Date().toISOString());
+    if (!result.ok) {
+      return result;
+    }
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.input.project + '_紀錄');
+    result.record['RecordID'] = Utilities.getUuid();
+    result.record['No'] = sheet.getLastRow();
+    var rowArray = rowObjectToArray(HEADERS, result.record);
+    sheet.appendRow(rowArray);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
   }
-  var ss = getSpreadsheet_();
-  var sheet = ss.getSheetByName(payload.input.project + '_紀錄');
-  result.record['RecordID'] = Utilities.getUuid();
-  result.record['No'] = sheet.getLastRow();
-  var rowArray = rowObjectToArray(HEADERS, result.record);
-  sheet.appendRow(rowArray);
-  return { ok: true };
 }
 
 function findRowIndexByRecordId_(sheet, recordId) {
@@ -127,10 +133,9 @@ function findRowIndexByRecordId_(sheet, recordId) {
 }
 
 function rowToRecordObject_(sheet, rowIndex) {
-  var headers = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
   var rowValues = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
   var obj = {};
-  headers.forEach(function (h, i) { obj[h] = rowValues[i]; });
+  HEADERS.forEach(function (h, i) { obj[h] = rowValues[i]; });
   obj['Date'] = formatDateForCompare_(obj['Date']);
   obj['出發時間'] = formatTimeForCompare_(obj['出發時間']);
   obj['上班時間'] = formatTimeForCompare_(obj['上班時間']);
@@ -158,44 +163,56 @@ function handleGetMyRecords(payload) {
 }
 
 function handleUpdateMyRecord(payload) {
-  var ss = getSpreadsheet_();
-  var sheet = ss.getSheetByName(payload.project + '_紀錄');
-  var rowIndex = findRowIndexByRecordId_(sheet, payload.recordId);
-  if (rowIndex === -1) {
-    return { ok: false, error: '找不到紀錄：' + payload.recordId };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.project + '_紀錄');
+    var rowIndex = findRowIndexByRecordId_(sheet, payload.recordId);
+    if (rowIndex === -1) {
+      return { ok: false, error: '找不到紀錄：' + payload.recordId };
+    }
+    var record = rowToRecordObject_(sheet, rowIndex);
+    var todayISO = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    if (!canEditRecord(record, payload.name, todayISO)) {
+      return { ok: false, error: '沒有權限編輯此紀錄' };
+    }
+    var result = recalcRecordFields(record, payload.edits || {});
+    if (!result.ok) {
+      return result;
+    }
+    result.record['修改時間'] = new Date().toISOString();
+    var rowArray = rowObjectToArray(HEADERS, result.record);
+    sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([rowArray]);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
   }
-  var record = rowToRecordObject_(sheet, rowIndex);
-  var todayISO = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  if (!canEditRecord(record, payload.name, todayISO)) {
-    return { ok: false, error: '沒有權限編輯此紀錄' };
-  }
-  var result = recalcRecordFields(record, payload.edits || {});
-  if (!result.ok) {
-    return result;
-  }
-  result.record['修改時間'] = new Date().toISOString();
-  var rowArray = rowObjectToArray(HEADERS, result.record);
-  sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([rowArray]);
-  return { ok: true };
 }
 
 function handleDeleteMyRecord(payload) {
-  var ss = getSpreadsheet_();
-  var sheet = ss.getSheetByName(payload.project + '_紀錄');
-  var rowIndex = findRowIndexByRecordId_(sheet, payload.recordId);
-  if (rowIndex === -1) {
-    return { ok: false, error: '找不到紀錄：' + payload.recordId };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.project + '_紀錄');
+    var rowIndex = findRowIndexByRecordId_(sheet, payload.recordId);
+    if (rowIndex === -1) {
+      return { ok: false, error: '找不到紀錄：' + payload.recordId };
+    }
+    var record = rowToRecordObject_(sheet, rowIndex);
+    var todayISO = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    if (!canEditRecord(record, payload.name, todayISO)) {
+      return { ok: false, error: '沒有權限刪除此紀錄' };
+    }
+    var statusColumnIndex = HEADERS.indexOf('狀態') + 1;
+    var modifiedColumnIndex = HEADERS.indexOf('修改時間') + 1;
+    sheet.getRange(rowIndex, statusColumnIndex).setValue('已刪除');
+    sheet.getRange(rowIndex, modifiedColumnIndex).setValue(new Date().toISOString());
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
   }
-  var record = rowToRecordObject_(sheet, rowIndex);
-  var todayISO = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  if (!canEditRecord(record, payload.name, todayISO)) {
-    return { ok: false, error: '沒有權限刪除此紀錄' };
-  }
-  var statusColumnIndex = HEADERS.indexOf('狀態') + 1;
-  var modifiedColumnIndex = HEADERS.indexOf('修改時間') + 1;
-  sheet.getRange(rowIndex, statusColumnIndex).setValue('已刪除');
-  sheet.getRange(rowIndex, modifiedColumnIndex).setValue(new Date().toISOString());
-  return { ok: true };
 }
 
 function jsonResponse_(obj) {

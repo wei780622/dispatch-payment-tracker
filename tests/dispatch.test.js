@@ -24,13 +24,21 @@ test('nextDispatchNo：當天已有 1 組不同派工 => 配 B（同一 Dispatch
   assert.equal(result, 'PR26A014-260707-B');
 });
 
-test('nextDispatchNo：忽略已刪除與其他日期的紀錄', () => {
+test('nextDispatchNo：已刪除紀錄的編號仍會被計入（同一天），避免字母被重複配發；其他日期的紀錄仍忽略', () => {
   const records = [
     { type: '派工', date: '2026-07-07', status: '已刪除', DispatchNo: 'PR26A014-260707-A' },
     { type: '派工', date: '2026-07-06', status: '正常', DispatchNo: 'PR26A014-260706-A' }
   ];
   const result = dispatch.nextDispatchNo(records, '2026-07-07', 'PR26A014');
-  assert.equal(result, 'PR26A014-260707-A');
+  assert.equal(result, 'PR26A014-260707-B');
+});
+
+test('nextDispatchNo：當天已達 26 組派工上限時丟出錯誤', () => {
+  const records = [];
+  for (let i = 0; i < 26; i++) {
+    records.push({ type: '派工', date: '2026-07-07', status: '正常', DispatchNo: 'PR26A014-260707-' + String.fromCharCode(65 + i) });
+  }
+  assert.throws(() => dispatch.nextDispatchNo(records, '2026-07-07', 'PR26A014'), /26 組派工上限/);
 });
 
 const rateTable = {
@@ -91,7 +99,7 @@ test('findOpenDispatches：回傳當天未滿 2 人的派工，且合併同一 D
   ];
   const result = dispatch.findOpenDispatches(records, '2026-08-03');
   assert.deepEqual(result, [
-    { dispatchNo: 'PR26A014-260803-A', project: 'A案', date: '2026-08-03', memberCount: 1 }
+    { dispatchNo: 'PR26A014-260803-A', project: 'A案', date: '2026-08-03', memberCount: 1, members: ['莊志傳'] }
   ]);
 });
 
@@ -175,6 +183,64 @@ test('buildDispatchRecord：加入已滿 2 人的派工要丟錯誤', () => {
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, existing, '2026-08-03T09:00:00.000Z'), /not open|不open|找不到|無法加入|已滿/);
 });
 
+test('buildDispatchRecord：本人已經是該派工成員時，加入自己的派工要丟錯誤（避免重複領錢）', () => {
+  const existing = [
+    { type: '派工', date: '2026-08-03', status: '正常', DispatchNo: 'PR26A014-260803-A', Project: '260803_USES Taya Longjing 2', 姓名: '莊志傳' }
+  ];
+  const input = {
+    project: 'SDI', name: '莊志傳', date: '2026-08-03',
+    isJoiningExisting: true, joinDispatchNo: 'PR26A014-260803-A', newProjectText: null,
+    chosenRole: null,
+    departureTime: '17:20', startTime: '08:40', endTime: '17:20',
+    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, existing, '2026-08-03T09:00:00.000Z'), /您已經在這個派工中/);
+});
+
+test('buildDispatchRecord：未知的 project 要丟出清楚錯誤（不能讓 settings[project] 先炸掉）', () => {
+  const input = {
+    project: 'UNKNOWN', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /未知的專案/);
+});
+
+test('buildDispatchRecord：overtimeHours 非數字（null）要丟出清楚錯誤', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: null, transportation: 0, lodging: 0, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /加班時數|overtimeHours/);
+});
+
+test('buildDispatchRecord：transportation 非數字（字串）要丟出清楚錯誤', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 'abc', lodging: 0, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /交通費|transportation/);
+});
+
+test('buildDispatchRecord：lodging 是 NaN 要丟出清楚錯誤', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 0, lodging: NaN, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /住宿費|lodging/);
+});
+
 test('buildDispatchRecord：工時非 4/8 小時且未強制送出 => 回傳 needsConfirmation', () => {
   const input = {
     project: 'SDI', name: '林哲宇', date: '2026-07-07',
@@ -246,4 +312,37 @@ test('recalcRecordFields：改成非 4/8 小時但 forceSubmit=true => 照常重
   const result = dispatch.recalcRecordFields(record, { endTime: '15:00', forceSubmit: true });
   assert.equal(result.ok, true);
   assert.equal(result.record['工時'], 6);
+});
+
+test('recalcRecordFields：edits 帶入非數字的 overtimeHours 要丟出清楚錯誤', () => {
+  const record = {
+    '單價': 9200, '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '住宿費': 0
+  };
+  assert.throws(() => dispatch.recalcRecordFields(record, { overtimeHours: 'abc' }), /加班時數|overtimeHours/);
+});
+
+test('recalcRecordFields：edits 帶入非數字的 transportation 要丟出清楚錯誤', () => {
+  const record = {
+    '單價': 9200, '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '住宿費': 0
+  };
+  assert.throws(() => dispatch.recalcRecordFields(record, { transportation: null }), /交通費|transportation/);
+});
+
+test('recalcRecordFields：edits 帶入非數字的 lodging 要丟出清楚錯誤', () => {
+  const record = {
+    '單價': 9200, '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '住宿費': 0
+  };
+  assert.throws(() => dispatch.recalcRecordFields(record, { lodging: NaN }), /住宿費|lodging/);
+});
+
+test('recalcRecordFields：edits 未包含 overtimeHours/transportation/lodging 時，不驗證這些欄位（維持既有合法值即可通過）', () => {
+  const record = {
+    '單價': 9200, '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '住宿費': 0
+  };
+  const result = dispatch.recalcRecordFields(record, { departureTime: '17:00' });
+  assert.equal(result.ok, true);
 });

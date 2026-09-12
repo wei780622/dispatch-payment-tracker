@@ -19,11 +19,14 @@ function formatDateYYMMDD(dateISO) {
 function nextDispatchNo(records, dateISO, prefix) {
   var distinct = {};
   records.forEach(function (r) {
-    if (r.type === '派工' && r.date === dateISO && r.status === '正常') {
+    if (r.type === '派工' && r.date === dateISO) {
       distinct[r.DispatchNo] = true;
     }
   });
   var count = Object.keys(distinct).length;
+  if (count >= 26) {
+    throw new Error('當天已達 26 組派工上限，無法再新增');
+  }
   var letter = String.fromCharCode(65 + count);
   return prefix + '-' + formatDateYYMMDD(dateISO) + '-' + letter;
 }
@@ -62,16 +65,30 @@ function findOpenDispatches(records, dateISO) {
   records.forEach(function (r) {
     if (r.type !== '派工' || r.date !== dateISO || r.status !== '正常') return;
     if (!groups[r.DispatchNo]) {
-      groups[r.DispatchNo] = { dispatchNo: r.DispatchNo, project: r.Project, date: r.date, memberCount: 0 };
+      groups[r.DispatchNo] = { dispatchNo: r.DispatchNo, project: r.Project, date: r.date, memberCount: 0, members: [] };
     }
     groups[r.DispatchNo].memberCount += 1;
+    groups[r.DispatchNo].members.push(r.姓名 || r['姓名']);
   });
   return Object.keys(groups)
     .map(function (key) { return groups[key]; })
     .filter(function (g) { return g.memberCount < 2; });
 }
 
+function assertFiniteNumber_(value, fieldName) {
+  if (typeof value !== 'number' || !isFinite(value)) {
+    throw new Error('欄位 ' + fieldName + ' 必須是有效數字');
+  }
+}
+
 function buildDispatchRecord(input, settings, existingRecords, nowISO) {
+  if (!settings.hasOwnProperty(input.project)) {
+    throw new Error('未知的專案：' + input.project);
+  }
+  assertFiniteNumber_(input.overtimeHours, '加班時數');
+  assertFiniteNumber_(input.transportation, '交通費');
+  assertFiniteNumber_(input.lodging, '住宿費');
+
   var hours = hoursFromTimes(input.startTime, input.endTime);
   if (!isStandardHours(hours) && !input.forceSubmit) {
     return { ok: false, needsConfirmation: true, hours: hours };
@@ -83,6 +100,9 @@ function buildDispatchRecord(input, settings, existingRecords, nowISO) {
       .filter(function (g) { return g.dispatchNo === input.joinDispatchNo; });
     if (openGroups.length === 0) {
       throw new Error('找不到可加入的派工，或該派工已滿 2 人：' + input.joinDispatchNo);
+    }
+    if (openGroups[0].members.indexOf(input.name) !== -1) {
+      throw new Error('您已經在這個派工中，無法重複加入：' + input.joinDispatchNo);
     }
     dispatchNo = input.joinDispatchNo;
     projectText = openGroups[0].project;
@@ -137,6 +157,10 @@ function buildDispatchRecord(input, settings, existingRecords, nowISO) {
 }
 
 function recalcRecordFields(record, edits) {
+  if (edits.overtimeHours !== undefined) assertFiniteNumber_(edits.overtimeHours, '加班時數');
+  if (edits.transportation !== undefined) assertFiniteNumber_(edits.transportation, '交通費');
+  if (edits.lodging !== undefined) assertFiniteNumber_(edits.lodging, '住宿費');
+
   var departureTime = edits.departureTime !== undefined ? edits.departureTime : record['出發時間'];
   var startTime = edits.startTime !== undefined ? edits.startTime : record['上班時間'];
   var endTime = edits.endTime !== undefined ? edits.endTime : record['下班時間'];

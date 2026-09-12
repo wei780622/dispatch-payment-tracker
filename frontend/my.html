@@ -62,8 +62,16 @@
       const name = document.getElementById('engineerSelect').value;
       const yearMonth = document.getElementById('monthInput').value;
       callApi('getMyRecords', { project: project, name: name, yearMonth: yearMonth }).then(function (res) {
+        if (!res.ok) {
+          alert('查詢失敗：' + res.error);
+          currentRecords = [];
+          renderTable();
+          return;
+        }
         currentRecords = res.records || [];
         renderTable();
+      }).catch(function (err) {
+        alert('連線異常，請稍後再試一次：' + err.message);
       });
     }
 
@@ -122,6 +130,8 @@
         } else {
           alert('儲存失敗：' + res.error);
         }
+      }).catch(function (err) {
+        alert('連線異常，請稍後再試一次：' + err.message);
       });
     }
 
@@ -134,6 +144,8 @@
         } else {
           alert('刪除失敗：' + res.error);
         }
+      }).catch(function (err) {
+        alert('連線異常，請稍後再試一次：' + err.message);
       });
     }
   </script>
