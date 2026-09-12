@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的派工紀錄</title>
+<style>
+  body { font-family: -apple-system, "PingFang TC", sans-serif; background: #f5f5f7; margin: 0; padding: 24px 16px; }
+  .card { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 14px; padding: 24px; }
+  label { display: inline-block; margin-right: 12px; font-weight: 600; }
+  select, input[type="month"] { padding: 6px; border-radius: 8px; border: 1px solid #ccc; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; font-size: 14px; }
+  .row-actions button { margin-right: 6px; }
+  .edit-form input { width: 90px; padding: 4px; margin-right: 6px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>我的派工紀錄</h1>
+    <label>姓名</label>
+    <select id="engineerSelect"></select>
+    <label>月份</label>
+    <input type="month" id="monthInput">
+    <button id="searchBtn">查詢</button>
+
+    <table id="recordsTable">
+      <thead>
+        <tr>
+          <th>日期</th><th>DispatchNo</th><th>Project</th><th>角色</th>
+          <th>上班</th><th>下班</th><th>加班</th><th>交通</th><th>住宿</th><th>合計</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="recordsBody"></tbody>
+    </table>
+  </div>
+
+  <script src="shared.js"></script>
+  <script>
+    const project = getProjectFromUrl();
+    let currentRecords = [];
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      callApi('getEngineers', { project: project }).then(function (res) {
+        const select = document.getElementById('engineerSelect');
+        (res.engineers || []).forEach(function (name) {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+      });
+      const now = new Date();
+      document.getElementById('monthInput').value =
+        now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      document.getElementById('searchBtn').addEventListener('click', search);
+    }
+
+    function search() {
+      const name = document.getElementById('engineerSelect').value;
+      const yearMonth = document.getElementById('monthInput').value;
+      callApi('getMyRecords', { project: project, name: name, yearMonth: yearMonth }).then(function (res) {
+        currentRecords = res.records || [];
+        renderTable();
+      });
+    }
+
+    function renderTable() {
+      const body = document.getElementById('recordsBody');
+      body.innerHTML = '';
+      currentRecords.forEach(function (r) {
+        const tr = document.createElement('tr');
+        tr.dataset.recordId = r['RecordID'];
+        tr.innerHTML =
+          '<td>' + r['Date'] + '</td>' +
+          '<td>' + r['DispatchNo'] + '</td>' +
+          '<td>' + r['Project'] + '</td>' +
+          '<td>' + r['角色'] + '</td>' +
+          '<td>' + r['上班時間'] + '</td>' +
+          '<td>' + r['下班時間'] + '</td>' +
+          '<td>' + r['加班時數'] + '</td>' +
+          '<td>' + r['交通費'] + '</td>' +
+          '<td>' + r['住宿費'] + '</td>' +
+          '<td>' + Number(r['合計']).toFixed(2) + '</td>' +
+          '<td class="row-actions"><button class="editBtn">編輯</button><button class="deleteBtn">刪除</button></td>';
+        tr.querySelector('.editBtn').addEventListener('click', function () { showEditForm(tr, r); });
+        tr.querySelector('.deleteBtn').addEventListener('click', function () { deleteRecord(r); });
+        body.appendChild(tr);
+      });
+    }
+
+    function showEditForm(tr, record) {
+      const editRow = document.createElement('tr');
+      editRow.innerHTML =
+        '<td colspan="11" class="edit-form">' +
+        '交通費 <input type="number" class="editTransport" value="' + record['交通費'] + '">' +
+        '住宿費 <input type="number" class="editLodging" value="' + record['住宿費'] + '">' +
+        '加班時數 <input type="number" class="editOvertime" value="' + record['加班時數'] + '">' +
+        '<button class="saveBtn">儲存</button>' +
+        '</td>';
+      tr.parentNode.insertBefore(editRow, tr.nextSibling);
+      editRow.querySelector('.saveBtn').addEventListener('click', function () {
+        const edits = {
+          transportation: Number(editRow.querySelector('.editTransport').value),
+          lodging: Number(editRow.querySelector('.editLodging').value),
+          overtimeHours: Number(editRow.querySelector('.editOvertime').value)
+        };
+        saveEdit(record, edits, editRow);
+      });
+    }
+
+    function saveEdit(record, edits, editRow) {
+      const name = document.getElementById('engineerSelect').value;
+      callApi('updateMyRecord', { project: project, name: name, recordId: record['RecordID'], edits: edits }).then(function (res) {
+        if (res.ok) {
+          editRow.remove();
+          search();
+        } else if (res.needsConfirmation) {
+          alert('工時計算為 ' + res.hours + ' 小時，通常應為 4 或 8 小時，請確認時間後再試一次。');
+        } else {
+          alert('儲存失敗：' + res.error);
+        }
+      });
+    }
+
+    function deleteRecord(record) {
+      if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+      const name = document.getElementById('engineerSelect').value;
+      callApi('deleteMyRecord', { project: project, name: name, recordId: record['RecordID'] }).then(function (res) {
+        if (res.ok) {
+          search();
+        } else {
+          alert('刪除失敗：' + res.error);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
