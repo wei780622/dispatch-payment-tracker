@@ -67,6 +67,48 @@ function formatDateForCompare_(dateValue) {
   return dateValue;
 }
 
+function getSettings_() {
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName('設定');
+  var rows = sheet.getDataRange().getValues();
+  return parseSettingsRows(rows);
+}
+
+function getRecordsForDispatchLogic_(project, dateISO) {
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(project + '_紀錄');
+  return readSheetAsObjects_(sheet)
+    .filter(function (r) { return formatDateForCompare_(r['Date']) === dateISO; })
+    .map(function (r) {
+      return {
+        type: r['類型'], date: formatDateForCompare_(r['Date']), status: r['狀態'],
+        DispatchNo: r['DispatchNo'], Project: r['Project']
+      };
+    });
+}
+
+function handlePreviewRecord(payload) {
+  var settings = getSettings_();
+  var existing = getRecordsForDispatchLogic_(payload.input.project, payload.input.date);
+  return buildDispatchRecord(payload.input, settings, existing, new Date().toISOString());
+}
+
+function handleSubmitRecord(payload) {
+  var settings = getSettings_();
+  var existing = getRecordsForDispatchLogic_(payload.input.project, payload.input.date);
+  var result = buildDispatchRecord(payload.input, settings, existing, new Date().toISOString());
+  if (!result.ok) {
+    return result;
+  }
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.input.project + '_紀錄');
+  result.record['RecordID'] = Utilities.getUuid();
+  result.record['No'] = sheet.getLastRow();
+  var rowArray = rowObjectToArray(HEADERS, result.record);
+  sheet.appendRow(rowArray);
+  return { ok: true };
+}
+
 function jsonResponse_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -84,7 +126,9 @@ function doPost(e) {
   }
   var handlers = {
     getEngineers: handleGetEngineers,
-    getOpenDispatches: handleGetOpenDispatches
+    getOpenDispatches: handleGetOpenDispatches,
+    previewRecord: handlePreviewRecord,
+    submitRecord: handleSubmitRecord
   };
   var handler = handlers[payload.action];
   if (!handler) {
