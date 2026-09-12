@@ -28,3 +28,30 @@ function setupSheets() {
   }
   Logger.log('setupSheets 完成');
 }
+
+function jsonResponse_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  return jsonResponse_({ ok: true, message: 'Dispatch Payment Tracker API is running' });
+}
+
+function doPost(e) {
+  var payload;
+  try {
+    payload = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return jsonResponse_({ ok: false, error: 'Invalid JSON payload' });
+  }
+  var handlers = {};
+  var handler = handlers[payload.action];
+  if (!handler) {
+    return jsonResponse_({ ok: false, error: 'Unknown action: ' + payload.action });
+  }
+  try {
+    return jsonResponse_(handler(payload));
+  } catch (err) {
+    return jsonResponse_({ ok: false, error: err.message });
+  }
+}
