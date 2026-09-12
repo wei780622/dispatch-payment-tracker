@@ -35,3 +35,56 @@ test('buildFixedFeeRecord：金額不是數字要丟錯誤', () => {
     { date: '2026-07-30', description: 'test', amount: 'abc' }, '2026-07-30T10:00:00.000Z'
   ), /金額/);
 });
+
+test('buildAdminRecordUpdate：固定費用列直接合併 edits，不重新計算', () => {
+  const record = {
+    '類型': '固定費用', '姓名': 'Warehouse fee(Zhongli)', 'Date': '2026-07-30', '合計': 124210, '修改時間': '2026-07-30T10:00:00.000Z'
+  };
+  const result = adminRecords.buildAdminRecordUpdate(record, { amount: 999, description: '改過的說明' }, '2026-08-01T00:00:00.000Z');
+  assert.equal(result.ok, true);
+  assert.equal(result.record['修改時間'], '2026-08-01T00:00:00.000Z');
+  assert.equal(result.record.amount, 999);
+});
+
+test('buildAdminRecordUpdate：派工列可以改日期/派工單號/角色/單價並重新試算', () => {
+  const record = {
+    '類型': '派工', 'Date': '2026-07-07', 'DispatchNo': 'PR26A014-260707-A', 'Project': '測試案',
+    '姓名': '林哲宇', '角色': 'Engineer', '單價': 9200,
+    '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '住宿費': 0
+  };
+  const result = adminRecords.buildAdminRecordUpdate(record, {
+    date: '2026-07-08', dispatchNo: 'PR26A014-260708-A', project: '改過的案場', role: 'Worker', unitPrice: 7000
+  }, '2026-08-01T00:00:00.000Z');
+  assert.equal(result.ok, true);
+  assert.equal(result.record['Date'], '2026-07-08');
+  assert.equal(result.record['DispatchNo'], 'PR26A014-260708-A');
+  assert.equal(result.record['Project'], '改過的案場');
+  assert.equal(result.record['角色'], 'Worker');
+  assert.equal(result.record['單價'], 7000);
+  assert.ok(Math.abs(result.record['稅前單價'] - 6666.666666666666) < 1e-6);
+  assert.equal(result.record['修改時間'], '2026-08-01T00:00:00.000Z');
+});
+
+test('buildAdminRecordUpdate：改成非 4/8 小時且未強制時回傳 needsConfirmation', () => {
+  const record = {
+    '類型': '派工', 'Date': '2026-07-07', 'DispatchNo': 'PR26A014-260707-A', 'Project': '測試案',
+    '姓名': '林哲宇', '角色': 'Engineer', '單價': 9200,
+    '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '住宿費': 0
+  };
+  const result = adminRecords.buildAdminRecordUpdate(record, { endTime: '15:00' }, '2026-08-01T00:00:00.000Z');
+  assert.equal(result.ok, false);
+  assert.equal(result.needsConfirmation, true);
+  assert.equal(result.hours, 6);
+});
+
+test('buildAdminRecordUpdate：單價改成非數字要丟錯誤', () => {
+  const record = {
+    '類型': '派工', 'Date': '2026-07-07', 'DispatchNo': 'PR26A014-260707-A', 'Project': '測試案',
+    '姓名': '林哲宇', '角色': 'Engineer', '單價': 9200,
+    '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '住宿費': 0
+  };
+  assert.throws(() => adminRecords.buildAdminRecordUpdate(record, { unitPrice: 'abc' }, '2026-08-01T00:00:00.000Z'), /單價/);
+});
