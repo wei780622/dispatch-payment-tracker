@@ -398,6 +398,43 @@ function handleAdminToggleEngineer(payload) {
   return { ok: true };
 }
 
+function handleAdminGetSites(payload) {
+  assertAdminPin_(payload);
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_案場');
+  var rows = readSheetAsObjects_(sheet);
+  var sites = rows.map(function (r) {
+    return { name: r['案場名稱'], address: r['地址'], active: r['啟用中'] === true || r['啟用中'] === 'TRUE' };
+  });
+  return { ok: true, sites: sites };
+}
+
+function handleAdminAddSite(payload) {
+  assertAdminPin_(payload);
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_案場');
+  var rowIndex = findNameRowIndex_(sheet, '案場名稱', payload.name);
+  if (rowIndex === -1) {
+    sheet.appendRow([payload.name, payload.address, true]);
+  } else {
+    sheet.getRange(rowIndex, 2).setValue(payload.address);
+    sheet.getRange(rowIndex, 3).setValue(true);
+  }
+  return { ok: true };
+}
+
+function handleAdminToggleSite(payload) {
+  assertAdminPin_(payload);
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_案場');
+  var rowIndex = findNameRowIndex_(sheet, '案場名稱', payload.name);
+  if (rowIndex === -1) {
+    return { ok: false, error: '找不到案場：' + payload.name };
+  }
+  sheet.getRange(rowIndex, 3).setValue(!!payload.active);
+  return { ok: true };
+}
+
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
@@ -437,7 +474,10 @@ function doPost(e) {
     adminUpdateSettings: handleAdminUpdateSettings,
     adminGetEngineers: handleAdminGetEngineers,
     adminAddEngineer: handleAdminAddEngineer,
-    adminToggleEngineer: handleAdminToggleEngineer
+    adminToggleEngineer: handleAdminToggleEngineer,
+    adminGetSites: handleAdminGetSites,
+    adminAddSite: handleAdminAddSite,
+    adminToggleSite: handleAdminToggleSite
   };
   var handler = handlers[payload.action];
   if (!handler) {
