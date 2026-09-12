@@ -123,6 +123,7 @@ test('buildDispatchRecord：SDI 新增派工，工時 8 小時，比對現有範
     project: 'SDI', name: '林哲宇', date: '2026-07-07',
     isJoiningExisting: false, joinDispatchNo: null, newProjectText: '260707-(NHOA) Bigbattery',
     chosenRole: null,
+    siteName: '龍井廠', origin: '中華系統整合股份有限公司國分辦公室', destination: '台泥龍井廠',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
     overtimeHours: 0, transportation: 3495, lodging: 0, forceSubmit: false
   };
@@ -136,6 +137,10 @@ test('buildDispatchRecord：SDI 新增派工，工時 8 小時，比對現有範
   assert.ok(Math.abs(result.record['服務費小計'] - 9200) < 1e-6);
   assert.ok(Math.abs(result.record['合計'] - 12695) < 1e-6);
   assert.equal(result.record['狀態'], '正常');
+  assert.equal(result.record['案場名稱'], '龍井廠');
+  assert.equal(result.record['出發地'], '中華系統整合股份有限公司國分辦公室');
+  assert.equal(result.record['抵達地'], '台泥龍井廠');
+  assert.equal(result.record['途經'], '');
 });
 
 test('buildDispatchRecord：SDI 加入既有派工 => Worker/7000，沿用 DispatchNo/Project', () => {
@@ -146,6 +151,7 @@ test('buildDispatchRecord：SDI 加入既有派工 => Worker/7000，沿用 Dispa
     project: 'SDI', name: '古尚杰', date: '2026-08-03',
     isJoiningExisting: true, joinDispatchNo: 'PR26A014-260803-A', newProjectText: null,
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:20', startTime: '08:40', endTime: '17:20',
     overtimeHours: 0, transportation: 591, lodging: 0, forceSubmit: false
   };
@@ -162,6 +168,7 @@ test('buildDispatchRecord：加入不存在或已滿的派工要丟錯誤', () =
     project: 'SDI', name: '古尚杰', date: '2026-08-03',
     isJoiningExisting: true, joinDispatchNo: 'PR26A014-NOT-EXIST', newProjectText: null,
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:20', startTime: '08:40', endTime: '17:20',
     overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
   };
@@ -177,6 +184,7 @@ test('buildDispatchRecord：加入已滿 2 人的派工要丟錯誤', () => {
     project: 'SDI', name: '林哲宇', date: '2026-08-03',
     isJoiningExisting: true, joinDispatchNo: 'PR26A014-260803-A', newProjectText: null,
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:20', startTime: '08:40', endTime: '17:20',
     overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
   };
@@ -191,6 +199,7 @@ test('buildDispatchRecord：本人已經是該派工成員時，加入自己的�
     project: 'SDI', name: '莊志傳', date: '2026-08-03',
     isJoiningExisting: true, joinDispatchNo: 'PR26A014-260803-A', newProjectText: null,
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:20', startTime: '08:40', endTime: '17:20',
     overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
   };
@@ -202,6 +211,7 @@ test('buildDispatchRecord：未知的 project 要丟出清楚錯誤（不能讓 
     project: 'UNKNOWN', name: '林哲宇', date: '2026-07-07',
     isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
     overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
   };
@@ -213,6 +223,7 @@ test('buildDispatchRecord：overtimeHours 非數字（null）要丟出清楚錯�
     project: 'SDI', name: '林哲宇', date: '2026-07-07',
     isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
     overtimeHours: null, transportation: 0, lodging: 0, forceSubmit: false
   };
@@ -224,6 +235,7 @@ test('buildDispatchRecord：transportation 非數字（字串）要丟出清楚�
     project: 'SDI', name: '林哲宇', date: '2026-07-07',
     isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
     overtimeHours: 0, transportation: 'abc', lodging: 0, forceSubmit: false
   };
@@ -235,6 +247,7 @@ test('buildDispatchRecord：lodging 是 NaN 要丟出清楚錯誤', () => {
     project: 'SDI', name: '林哲宇', date: '2026-07-07',
     isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:24', startTime: '08:30', endTime: '17:15',
     overtimeHours: 0, transportation: 0, lodging: NaN, forceSubmit: false
   };
@@ -246,6 +259,7 @@ test('buildDispatchRecord：工時非 4/8 小時且未強制送出 => 回傳 nee
     project: 'SDI', name: '林哲宇', date: '2026-07-07',
     isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '15:00', startTime: '08:30', endTime: '15:00',
     overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
   };
@@ -260,6 +274,7 @@ test('buildDispatchRecord：工時非 4/8 小時但 forceSubmit=true => 照常�
     project: 'SDI', name: '林哲宇', date: '2026-07-07',
     isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '15:00', startTime: '08:30', endTime: '15:00',
     overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: true
   };
@@ -273,6 +288,7 @@ test('buildDispatchRecord：HDC 沒選角色要丟錯誤', () => {
     project: 'HDC', name: '莊志傳', date: '2026-08-03',
     isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
     chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
     departureTime: '17:00', startTime: '08:00', endTime: '16:00',
     overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
   };
@@ -345,4 +361,54 @@ test('recalcRecordFields：edits 未包含 overtimeHours/transportation/lodging 
   };
   const result = dispatch.recalcRecordFields(record, { departureTime: '17:00' });
   assert.equal(result.ok, true);
+});
+
+test('buildDispatchRecord：途經多個地點會用 | 串接', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地', viaPoints: ['休息站A', '休息站B'],
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+  };
+  const result = dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z');
+  assert.equal(result.record['途經'], '休息站A | 休息站B');
+});
+
+test('buildDispatchRecord：不給途經時預設為空字串', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '工地',
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+  };
+  const result = dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z');
+  assert.equal(result.record['途經'], '');
+});
+
+test('buildDispatchRecord：缺少案場名稱要丟錯誤', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    siteName: '', origin: '公司', destination: '工地',
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /案場名稱/);
+});
+
+test('buildDispatchRecord：缺少抵達地要丟錯誤', () => {
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-07-07',
+    isJoiningExisting: false, joinDispatchNo: null, newProjectText: '測試案',
+    chosenRole: null,
+    siteName: '龍井廠', origin: '公司', destination: '',
+    departureTime: '17:24', startTime: '08:30', endTime: '17:15',
+    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-07-07T09:00:00.000Z'), /抵達地/);
 });

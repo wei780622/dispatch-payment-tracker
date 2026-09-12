@@ -64,6 +64,19 @@
       <label>住宿費</label>
       <input type="number" id="lodging" value="0" min="0">
 
+      <label>案場名稱</label>
+      <select id="siteSelect" required></select>
+
+      <label>出發地</label>
+      <input type="text" id="originInput" required>
+
+      <label>抵達地</label>
+      <input type="text" id="destinationInput" readonly required>
+
+      <label>途經（選填）</label>
+      <div id="viaPointsContainer"></div>
+      <button type="button" id="addViaPointBtn">+ 新增經由點</button>
+
       <div id="confirmHoursBox">
         <div id="confirmHoursText"></div>
         <label><input type="checkbox" id="forceSubmitCheckbox"> 仍要送出</label>
@@ -97,6 +110,36 @@
           opt.textContent = name;
           select.appendChild(opt);
         });
+      });
+
+      callApi('getSites', { project: project }).then(function (res) {
+        const select = document.getElementById('siteSelect');
+        (res.sites || []).forEach(function (site) {
+          const opt = document.createElement('option');
+          opt.value = site.name;
+          opt.dataset.address = site.address;
+          opt.textContent = site.name;
+          select.appendChild(opt);
+        });
+        if (select.options.length > 0) {
+          document.getElementById('destinationInput').value = select.options[0].dataset.address;
+        }
+      });
+
+      document.getElementById('originInput').value = '中華系統整合股份有限公司國分辦公室';
+
+      document.getElementById('siteSelect').addEventListener('change', function () {
+        const opt = this.options[this.selectedIndex];
+        document.getElementById('destinationInput').value = opt ? opt.dataset.address : '';
+        schedulePreview();
+      });
+
+      document.getElementById('addViaPointBtn').addEventListener('click', function () {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'viaPointInput';
+        input.placeholder = '經由點地址';
+        document.getElementById('viaPointsContainer').appendChild(input);
       });
 
       document.getElementById('dateInput').addEventListener('change', loadOpenDispatches);
@@ -151,6 +194,12 @@
         isJoiningExisting: isJoining,
         joinDispatchNo: isJoining ? choice.value : null,
         newProjectText: isJoining ? null : document.getElementById('newProjectText').value,
+        siteName: document.getElementById('siteSelect').value,
+        origin: document.getElementById('originInput').value,
+        destination: document.getElementById('destinationInput').value,
+        viaPoints: Array.from(document.querySelectorAll('.viaPointInput'))
+          .map(function (el) { return el.value.trim(); })
+          .filter(function (v) { return v !== ''; }),
         chosenRole: project === 'HDC' ? document.getElementById('roleSelect').value : null,
         departureTime: document.getElementById('departureTime').value,
         startTime: document.getElementById('startTime').value,
@@ -218,6 +267,11 @@
           document.getElementById('dispatchForm').reset();
           document.getElementById('previewBox').innerHTML = '';
           document.getElementById('dispatchChoices').innerHTML = '';
+          document.getElementById('viaPointsContainer').innerHTML = '';
+          document.getElementById('originInput').value = '中華系統整合股份有限公司國分辦公室';
+          const siteSelectEl = document.getElementById('siteSelect');
+          document.getElementById('destinationInput').value =
+            siteSelectEl.options.length > 0 ? siteSelectEl.options[siteSelectEl.selectedIndex].dataset.address : '';
           document.getElementById('confirmHoursBox').style.display = 'none';
           document.getElementById('successMessage').style.display = 'block';
           lastPreviewNeedsConfirmation = false;
