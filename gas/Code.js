@@ -335,6 +335,23 @@ function handleAdminAddFixedFee(payload) {
   }
 }
 
+function handleAdminGetSettings(payload) {
+  assertAdminPin_(payload);
+  return { ok: true, settings: getSettings_() };
+}
+
+function handleAdminUpdateSettings(payload) {
+  assertAdminPin_(payload);
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName('設定');
+  var s = payload.settings;
+  sheet.getRange(2, 1, 2, 4).setValues([
+    ['SDI', s.SDI.prefix, s.SDI.rates.Engineer, s.SDI.rates.Worker],
+    ['HDC', s.HDC.prefix, s.HDC.rates.Engineer, s.HDC.rates.Worker]
+  ]);
+  return { ok: true };
+}
+
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
@@ -369,7 +386,9 @@ function doPost(e) {
     adminGetRecords: handleAdminGetRecords,
     adminUpdateRecord: handleAdminUpdateRecord,
     adminDeleteRecord: handleAdminDeleteRecord,
-    adminAddFixedFee: handleAdminAddFixedFee
+    adminAddFixedFee: handleAdminAddFixedFee,
+    adminGetSettings: handleAdminGetSettings,
+    adminUpdateSettings: handleAdminUpdateSettings
   };
   var handler = handlers[payload.action];
   if (!handler) {
