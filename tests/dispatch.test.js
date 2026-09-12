@@ -160,6 +160,21 @@ test('buildDispatchRecord：加入不存在或已滿的派工要丟錯誤', () =
   assert.throws(() => dispatch.buildDispatchRecord(input, settings, [], '2026-08-03T09:00:00.000Z'), /not open|不open|找不到|無法加入/);
 });
 
+test('buildDispatchRecord：加入已滿 2 人的派工要丟錯誤', () => {
+  const existing = [
+    { type: '派工', date: '2026-08-03', status: '正常', DispatchNo: 'PR26A014-260803-A', Project: '260803_USES Taya Longjing 2', 姓名: '莊志傳' },
+    { type: '派工', date: '2026-08-03', status: '正常', DispatchNo: 'PR26A014-260803-A', Project: '260803_USES Taya Longjing 2', 姓名: '古尚杰' }
+  ];
+  const input = {
+    project: 'SDI', name: '林哲宇', date: '2026-08-03',
+    isJoiningExisting: true, joinDispatchNo: 'PR26A014-260803-A', newProjectText: null,
+    chosenRole: null,
+    departureTime: '17:20', startTime: '08:40', endTime: '17:20',
+    overtimeHours: 0, transportation: 0, lodging: 0, forceSubmit: false
+  };
+  assert.throws(() => dispatch.buildDispatchRecord(input, settings, existing, '2026-08-03T09:00:00.000Z'), /not open|不open|找不到|無法加入|已滿/);
+});
+
 test('buildDispatchRecord：工時非 4/8 小時且未強制送出 => 回傳 needsConfirmation', () => {
   const input = {
     project: 'SDI', name: '林哲宇', date: '2026-07-07',
@@ -221,4 +236,14 @@ test('recalcRecordFields：改成非 4/8 小時的時間且未強制 => needsCon
   const result = dispatch.recalcRecordFields(record, { endTime: '15:00' });
   assert.equal(result.ok, false);
   assert.equal(result.needsConfirmation, true);
+});
+
+test('recalcRecordFields：改成非 4/8 小時但 forceSubmit=true => 照常重新試算', () => {
+  const record = {
+    '單價': 9200, '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '住宿費': 0
+  };
+  const result = dispatch.recalcRecordFields(record, { endTime: '15:00', forceSubmit: true });
+  assert.equal(result.ok, true);
+  assert.equal(result.record['工時'], 6);
 });
