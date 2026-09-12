@@ -81,6 +81,42 @@ test('buildAdminRecordUpdate：改成非 4/8 小時且未強制時回傳 needsCo
   assert.equal(result.hours, 6);
 });
 
+test('buildAdminRecordUpdate：管理員修改公里數會用每公里 15 元併入交通住宿小計，「交通費」欄位維持原始輸入值不被覆蓋', () => {
+  const record = {
+    '類型': '派工', 'Date': '2026-07-07', 'DispatchNo': 'PR26A014-260707-A', 'Project': '測試案',
+    '姓名': '林哲宇', '角色': 'Engineer', '單價': 9200,
+    '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 100, '公里數': 0, '住宿費': 0
+  };
+  const result = adminRecords.buildAdminRecordUpdate(record, { kilometers: 20 }, '2026-08-01T00:00:00.000Z');
+  assert.equal(result.ok, true);
+  assert.equal(result.record['交通費'], 100);
+  assert.equal(result.record['公里數'], 20);
+  assert.equal(result.record['交通住宿小計'], 400);
+});
+
+test('buildAdminRecordUpdate：公里數改成非數字要丟錯誤', () => {
+  const record = {
+    '類型': '派工', 'Date': '2026-07-07', 'DispatchNo': 'PR26A014-260707-A', 'Project': '測試案',
+    '姓名': '林哲宇', '角色': 'Engineer', '單價': 9200,
+    '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 3495, '公里數': 0, '住宿費': 0
+  };
+  assert.throws(() => adminRecords.buildAdminRecordUpdate(record, { kilometers: 'abc' }, '2026-08-01T00:00:00.000Z'), /公里數/);
+});
+
+test('buildAdminRecordUpdate：舊資料沒有「公里數」欄位時預設為 0', () => {
+  const record = {
+    '類型': '派工', 'Date': '2026-07-07', 'DispatchNo': 'PR26A014-260707-A', 'Project': '測試案',
+    '姓名': '林哲宇', '角色': 'Engineer', '單價': 9200,
+    '出發時間': '17:24', '上班時間': '08:30', '下班時間': '17:15',
+    '加班時數': 0, '交通費': 100, '住宿費': 0
+  };
+  const result = adminRecords.buildAdminRecordUpdate(record, { unitPrice: 9200 }, '2026-08-01T00:00:00.000Z');
+  assert.equal(result.ok, true);
+  assert.equal(result.record['交通住宿小計'], 100);
+});
+
 test('buildAdminRecordUpdate：單價改成非數字要丟錯誤', () => {
   const record = {
     '類型': '派工', 'Date': '2026-07-07', 'DispatchNo': 'PR26A014-260707-A', 'Project': '測試案',

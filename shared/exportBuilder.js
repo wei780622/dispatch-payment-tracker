@@ -1,3 +1,8 @@
+if (typeof require !== 'undefined') {
+  var calcLib = require('./calc.js');
+  var transportationTotal = calcLib.transportationTotal;
+}
+
 function filterRecordsForExport(records, yearMonth) {
   return records
     .filter(function (r) { return r['狀態'] === '正常' && r['Date'].slice(0, 7) === yearMonth; })
@@ -34,7 +39,7 @@ function buildExportRows(records, startRow) {
       '=ROUND((H' + r + '/8)*N' + r + '*1.34,0)',
       '=ROUND(H' + r + '*0.05*M' + r + ',0)',
       '=ROUND((H' + r + '*M' + r + ')+P' + r + '+O' + r + ',0)',
-      record['交通費'],
+      transportationTotal(record['交通費'] || 0, record['公里數'] || 0),
       record['住宿費'],
       '=R' + r + '+S' + r,
       '=ROUND(Q' + r + '+T' + r + ',0)'

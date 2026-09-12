@@ -86,3 +86,9 @@ test('transportLodgingSubtotal 與 amount：交通 3495、住宿 0 => 合計 126
   const total = calc.amount(9200, tl);
   assert.equal(total, 12695);
 });
+
+test('transportationTotal：交通費加上公里數乘以 15（每公里 15 元）', () => {
+  assert.equal(calc.transportationTotal(0, 20), 300);
+  assert.equal(calc.transportationTotal(100, 20), 400);
+  assert.equal(calc.transportationTotal(500, 0), 500);
+});

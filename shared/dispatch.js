@@ -9,6 +9,7 @@ if (typeof require !== 'undefined') {
   var serviceSubtotal = calcLib.serviceSubtotal;
   var transportLodgingSubtotal = calcLib.transportLodgingSubtotal;
   var amount = calcLib.amount;
+  var transportationTotal = calcLib.transportationTotal;
 }
 
 function formatDateYYMMDD(dateISO) {
@@ -93,6 +94,7 @@ function buildDispatchRecord(input, settings, existingRecords, nowISO) {
   }
   assertFiniteNumber_(input.overtimeHours, '加班時數');
   assertFiniteNumber_(input.transportation, '交通費');
+  assertFiniteNumber_(input.kilometers, '公里數');
   assertFiniteNumber_(input.lodging, '住宿費');
   assertNonEmptyString_(input.siteName, '案場名稱');
   assertNonEmptyString_(input.origin, '出發地');
@@ -130,7 +132,8 @@ function buildDispatchRecord(input, settings, existingRecords, nowISO) {
   var ot = overtimePay(roleRate.rate, input.overtimeHours);
   var mk = markup(roleRate.rate, dayCount);
   var svcSubtotal = serviceSubtotal(roleRate.rate, dayCount, input.overtimeHours);
-  var tlSubtotal = transportLodgingSubtotal(input.transportation, input.lodging);
+  var transportationFee = transportationTotal(input.transportation, input.kilometers);
+  var tlSubtotal = transportLodgingSubtotal(transportationFee, input.lodging);
   var total = amount(svcSubtotal, tlSubtotal);
 
   var record = {
@@ -164,7 +167,8 @@ function buildDispatchRecord(input, settings, existingRecords, nowISO) {
     '出發地': input.origin,
     '抵達地': input.destination,
     '途經': (input.viaPoints || []).join(' | '),
-    'PDF網址': ''
+    'PDF網址': '',
+    '公里數': input.kilometers
   };
 
   return { ok: true, needsConfirmation: false, record: record };
@@ -173,6 +177,7 @@ function buildDispatchRecord(input, settings, existingRecords, nowISO) {
 function recalcRecordFields(record, edits) {
   if (edits.overtimeHours !== undefined) assertFiniteNumber_(edits.overtimeHours, '加班時數');
   if (edits.transportation !== undefined) assertFiniteNumber_(edits.transportation, '交通費');
+  if (edits.kilometers !== undefined) assertFiniteNumber_(edits.kilometers, '公里數');
   if (edits.lodging !== undefined) assertFiniteNumber_(edits.lodging, '住宿費');
 
   var departureTime = edits.departureTime !== undefined ? edits.departureTime : record['出發時間'];
@@ -180,6 +185,7 @@ function recalcRecordFields(record, edits) {
   var endTime = edits.endTime !== undefined ? edits.endTime : record['下班時間'];
   var overtimeHours = edits.overtimeHours !== undefined ? edits.overtimeHours : record['加班時數'];
   var transportation = edits.transportation !== undefined ? edits.transportation : record['交通費'];
+  var kilometers = edits.kilometers !== undefined ? edits.kilometers : (record['公里數'] || 0);
   var lodging = edits.lodging !== undefined ? edits.lodging : record['住宿費'];
 
   var hours = hoursFromTimes(startTime, endTime);
@@ -193,7 +199,8 @@ function recalcRecordFields(record, edits) {
   var ot = overtimePay(rate, overtimeHours);
   var mk = markup(rate, dayCount);
   var svcSubtotal = serviceSubtotal(rate, dayCount, overtimeHours);
-  var tlSubtotal = transportLodgingSubtotal(transportation, lodging);
+  var transportationFee = transportationTotal(transportation, kilometers);
+  var tlSubtotal = transportLodgingSubtotal(transportationFee, lodging);
   var total = amount(svcSubtotal, tlSubtotal);
 
   var updated = Object.assign({}, record, {
@@ -207,6 +214,7 @@ function recalcRecordFields(record, edits) {
     'mark up (5%)': mk,
     '服務費小計': svcSubtotal,
     '交通費': transportation,
+    '公里數': kilometers,
     '住宿費': lodging,
     '交通住宿小計': tlSubtotal,
     '合計': total

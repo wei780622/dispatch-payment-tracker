@@ -81,7 +81,7 @@ function writeExportHeaderRows_(sheet) {
 
 function migrateAddRouteColumns() {
   var ss = getSpreadsheet_();
-  var newColumns = ['案場名稱', '出發地', '抵達地', '途經', 'PDF網址'];
+  var newColumns = ['案場名稱', '出發地', '抵達地', '途經', 'PDF網址', '公里數'];
   ['SDI', 'HDC'].forEach(function (project) {
     var sheet = ss.getSheetByName(project + '_紀錄');
     var lastCol = sheet.getLastColumn();
