@@ -67,8 +67,11 @@
       <label>案場名稱</label>
       <select id="siteSelect" required></select>
 
+      <label>出發地點</label>
+      <select id="originSelect" required></select>
+
       <label>出發地</label>
-      <input type="text" id="originInput" required>
+      <input type="text" id="originInput" readonly required>
 
       <label>抵達地</label>
       <input type="text" id="destinationInput" readonly required>
@@ -97,6 +100,12 @@
 
     document.addEventListener('DOMContentLoaded', init);
 
+    const OFFICE_OPTIONS = [
+      { name: '中華系統整合股份有限公司台北辦公室', address: '臺北市大安區金山南路二段52號3樓' },
+      { name: '台中辦公室', address: '臺中市北區中清路一段347號4樓' },
+      { name: '高雄辦公室', address: '高雄成功大樓（5G AIoT 技術中心）' }
+    ];
+
     function todayISO() {
       const d = new Date();
       const yyyy = d.getFullYear();
@@ -109,13 +118,30 @@
       document.getElementById('dateInput').value = todayISO();
       document.getElementById('startTime').value = '08:30';
       document.getElementById('endTime').value = '17:30';
-      document.getElementById('originInput').value = '中華系統整合股份有限公司國分辦公室';
+      const originSelect = document.getElementById('originSelect');
+      document.getElementById('originInput').value =
+        originSelect.options.length > 0 ? originSelect.options[originSelect.selectedIndex].dataset.address : '';
     }
 
     function init() {
       document.getElementById('projectTitle').textContent =
         project === 'HDC' ? 'HANGANG NCS & HDC 維運表單' : 'SAMSUNG SDI 維運表單';
       document.getElementById('roleRow').style.display = project === 'HDC' ? 'block' : 'none';
+
+      const originSelect = document.getElementById('originSelect');
+      OFFICE_OPTIONS.forEach(function (office) {
+        const opt = document.createElement('option');
+        opt.value = office.name;
+        opt.dataset.address = office.address;
+        opt.textContent = office.name;
+        originSelect.appendChild(opt);
+      });
+      originSelect.addEventListener('change', function () {
+        const opt = this.options[this.selectedIndex];
+        document.getElementById('originInput').value = opt ? opt.dataset.address : '';
+        schedulePreview();
+      });
+
       applyFormDefaults();
 
       callApi('getEngineers', { project: project }).then(function (res) {
