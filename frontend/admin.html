@@ -50,7 +50,13 @@
       <label>日期</label>
       <input type="date" id="feeDate">
       <label>說明</label>
-      <input type="text" id="feeDescription">
+      <select id="feeDescriptionSelect">
+        <option value="Warehouse fee(Taipei)">Warehouse fee(Taipei)</option>
+        <option value="Warehouse fee(Zhongli)">Warehouse fee(Zhongli)</option>
+        <option value="Warehouse fee(Longjing)">Warehouse fee(Longjing)</option>
+        <option value="__other__">其他（手動輸入）</option>
+      </select>
+      <input type="text" id="feeDescriptionOther" placeholder="請輸入說明" style="display:none;">
       <label>金額</label>
       <input type="number" id="feeAmount">
       <button id="feeAddBtn">新增</button>
@@ -304,10 +310,18 @@
         .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
     }
 
+    document.getElementById('feeDescriptionSelect').addEventListener('change', function () {
+      document.getElementById('feeDescriptionOther').style.display = this.value === '__other__' ? 'block' : 'none';
+    });
+
     document.getElementById('feeAddBtn').addEventListener('click', function () {
+      const descSelect = document.getElementById('feeDescriptionSelect');
+      const description = descSelect.value === '__other__'
+        ? document.getElementById('feeDescriptionOther').value
+        : descSelect.value;
       const input = {
         date: document.getElementById('feeDate').value,
-        description: document.getElementById('feeDescription').value,
+        description: description,
         amount: Number(document.getElementById('feeAmount').value)
       };
       adminCallApi('adminAddFixedFee', { project: document.getElementById('feeProject').value, input: input })
