@@ -30,6 +30,52 @@ function setupSheets() {
   Logger.log('setupSheets 完成');
 }
 
+function writeExportHeaderRows_(sheet) {
+  sheet.getRange(2, 2).setValue('No.');
+  sheet.getRange(2, 3).setValue('Dispatch No.');
+  sheet.getRange(2, 4).setValue('Project');
+  sheet.getRange(2, 5).setValue('Date');
+  sheet.getRange(2, 6).setValue('service expence');
+  sheet.getRange(2, 18).setValue('Lodging and Transport Expenses');
+  sheet.getRange(2, 21).setValue('Amount');
+  sheet.getRange(3, 6).setValue('Personal');
+  sheet.getRange(3, 7).setValue('Unit Price');
+  sheet.getRange(3, 8).setValue('Tax  excluded');
+  sheet.getRange(3, 9).setValue('Departure Time');
+  sheet.getRange(3, 10).setValue('Work Time');
+  sheet.getRange(3, 14).setValue('Overtime\n (Hour)');
+  sheet.getRange(3, 15).setValue('Overtime pay');
+  sheet.getRange(3, 16).setValue('mark up\n(5%)');
+  sheet.getRange(3, 17).setValue('sub total');
+  sheet.getRange(3, 18).setValue('Transportation');
+  sheet.getRange(3, 19).setValue('Lodging');
+  sheet.getRange(3, 20).setValue('sub total');
+  sheet.getRange(4, 10).setValue('start');
+  sheet.getRange(4, 11).setValue('end');
+  sheet.getRange(4, 12).setValue('hours');
+  sheet.getRange(4, 13).setValue('days');
+
+  sheet.getRange(2, 2, 3, 1).merge();
+  sheet.getRange(2, 3, 3, 1).merge();
+  sheet.getRange(2, 4, 3, 1).merge();
+  sheet.getRange(2, 5, 3, 1).merge();
+  sheet.getRange(2, 6, 1, 12).merge();
+  sheet.getRange(3, 6, 2, 1).merge();
+  sheet.getRange(3, 7, 2, 1).merge();
+  sheet.getRange(3, 8, 2, 1).merge();
+  sheet.getRange(3, 9, 2, 1).merge();
+  sheet.getRange(3, 10, 1, 4).merge();
+  sheet.getRange(3, 14, 2, 1).merge();
+  sheet.getRange(3, 15, 2, 1).merge();
+  sheet.getRange(3, 16, 2, 1).merge();
+  sheet.getRange(3, 17, 2, 1).merge();
+  sheet.getRange(2, 18, 1, 3).merge();
+  sheet.getRange(3, 18, 2, 1).merge();
+  sheet.getRange(3, 19, 2, 1).merge();
+  sheet.getRange(3, 20, 2, 1).merge();
+  sheet.getRange(2, 21, 3, 1).merge();
+}
+
 function migrateAddRouteColumns() {
   var ss = getSpreadsheet_();
   var newColumns = ['案場名稱', '出發地', '抵達地', '途經', 'PDF網址'];
@@ -435,6 +481,51 @@ function handleAdminToggleSite(payload) {
   return { ok: true };
 }
 
+function handleExportMonthlyExcel(payload) {
+  assertAdminPin_(payload);
+  var mainSs = getSpreadsheet_();
+  var sourceSheet = mainSs.getSheetByName(payload.project + '_紀錄');
+  var allRecords = readSheetAsObjects_(sourceSheet).map(function (r) {
+    r['Date'] = formatDateForCompare_(r['Date']);
+    r['出發時間'] = formatTimeForCompare_(r['出發時間']);
+    r['上班時間'] = formatTimeForCompare_(r['上班時間']);
+    r['下班時間'] = formatTimeForCompare_(r['下班時間']);
+    return r;
+  });
+  var filtered = filterRecordsForExport(allRecords, payload.yearMonth);
+
+  var yy = payload.yearMonth.slice(2, 4);
+  var mm = payload.yearMonth.slice(5, 7);
+  var filename = payload.project + ' dispatch payment detail_CSI' + yy + mm + '.xlsx';
+
+  var tempSpreadsheet = SpreadsheetApp.create(filename.replace('.xlsx', ''));
+  var exportSheet = tempSpreadsheet.getSheets()[0];
+  exportSheet.setName(yy + mm + ' summary');
+  writeExportHeaderRows_(exportSheet);
+
+  var startRow = 5;
+  if (filtered.length > 0) {
+    var dataRows = buildExportRows(filtered, startRow);
+    exportSheet.getRange(startRow, 1, dataRows.length, 21).setValues(dataRows);
+  }
+  var lastDataRow = startRow + Math.max(filtered.length, 1) - 1;
+  var footerRows = buildFooterRows(startRow, lastDataRow, payload.exchangeRate, payload.yearMonth);
+  exportSheet.getRange(lastDataRow + 1, 1, footerRows.length, 21).setValues(footerRows);
+
+  SpreadsheetApp.flush();
+
+  var tempId = tempSpreadsheet.getId();
+  var exportUrl = 'https://docs.google.com/spreadsheets/d/' + tempId + '/export?format=xlsx';
+  var response = UrlFetchApp.fetch(exportUrl, {
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }
+  });
+  var base64 = Utilities.base64Encode(response.getBlob().getBytes());
+
+  DriveApp.getFileById(tempId).setTrashed(true);
+
+  return { ok: true, filename: filename, base64: base64 };
+}
+
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
@@ -477,7 +568,8 @@ function doPost(e) {
     adminToggleEngineer: handleAdminToggleEngineer,
     adminGetSites: handleAdminGetSites,
     adminAddSite: handleAdminAddSite,
-    adminToggleSite: handleAdminToggleSite
+    adminToggleSite: handleAdminToggleSite,
+    exportMonthlyExcel: handleExportMonthlyExcel
   };
   var handler = handlers[payload.action];
   if (!handler) {
