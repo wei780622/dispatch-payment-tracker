@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理後台</title>
+<style>
+  body { font-family: -apple-system, "PingFang TC", sans-serif; background: #f5f5f7; margin: 0; padding: 24px 16px; }
+  .card { max-width: 960px; margin: 0 auto 24px; background: #fff; border-radius: 14px; padding: 24px; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 16px; border-top: 1px solid #eee; padding-top: 16px; margin-top: 24px; }
+  label { display: inline-block; margin-right: 12px; font-weight: 600; }
+  input, select { padding: 6px; border-radius: 8px; border: 1px solid #ccc; margin-right: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  th, td { border-bottom: 1px solid #eee; padding: 6px; text-align: left; font-size: 13px; }
+  #loginGate { max-width: 320px; margin: 80px auto; text-align: center; }
+</style>
+</head>
+<body>
+  <div id="loginGate">
+    <h1>管理後台登入</h1>
+    <input type="password" id="pinInput" placeholder="請輸入管理密碼">
+    <button id="loginBtn">登入</button>
+  </div>
+
+  <div id="adminContent" style="display:none;">
+    <div class="card">
+      <h1>紀錄管理</h1>
+      <label>專案</label>
+      <select id="recProject"><option value="SDI">SDI</option><option value="HDC">HDC</option></select>
+      <label>年月</label>
+      <input type="month" id="recYearMonth">
+      <label>姓名</label>
+      <input type="text" id="recName" placeholder="留空查全部">
+      <label><input type="checkbox" id="recIncludeDeleted"> 顯示已刪除</label>
+      <button id="recSearchBtn">查詢</button>
+
+      <table id="recTable">
+        <thead>
+          <tr><th>日期</th><th>DispatchNo</th><th>Project</th><th>姓名</th><th>角色</th><th>單價</th><th>合計</th><th>狀態</th><th></th></tr>
+        </thead>
+        <tbody id="recBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="adminShared.js"></script>
+  <script>
+    let currentRecords = [];
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (getAdminPin()) {
+        showAdminContent();
+      }
+      document.getElementById('loginBtn').addEventListener('click', function () {
+        setAdminPin(document.getElementById('pinInput').value);
+        showAdminContent();
+      });
+      document.getElementById('recSearchBtn').addEventListener('click', searchRecords);
+
+      const now = new Date();
+      document.getElementById('recYearMonth').value =
+        now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    });
+
+    function showAdminContent() {
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+      searchRecords();
+    }
+
+    function searchRecords() {
+      const project = document.getElementById('recProject').value;
+      const yearMonth = document.getElementById('recYearMonth').value;
+      const name = document.getElementById('recName').value;
+      const includeDeleted = document.getElementById('recIncludeDeleted').checked;
+      adminCallApi('adminGetRecords', { project: project, yearMonth: yearMonth, name: name, includeDeleted: includeDeleted })
+        .then(function (res) {
+          if (!res.ok) { alert('查詢失敗：' + res.error); return; }
+          currentRecords = res.records || [];
+          renderRecordTable();
+        })
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+    }
+
+    function renderRecordTable() {
+      const body = document.getElementById('recBody');
+      body.innerHTML = '';
+      currentRecords.forEach(function (r) {
+        const tr = document.createElement('tr');
+        const cells = [r['Date'], r['DispatchNo'], r['Project'], r['姓名'], r['角色'], r['單價'], r['合計'], r['狀態']];
+        cells.forEach(function (value) {
+          const td = document.createElement('td');
+          td.textContent = value;
+          tr.appendChild(td);
+        });
+        const actionTd = document.createElement('td');
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '編輯';
+        editBtn.addEventListener('click', function () { showEditForm(tr, r); });
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '刪除';
+        deleteBtn.addEventListener('click', function () { deleteRecord(r); });
+        actionTd.appendChild(editBtn);
+        actionTd.appendChild(deleteBtn);
+        tr.appendChild(actionTd);
+        body.appendChild(tr);
+      });
+    }
+
+    function showEditForm(tr, record) {
+      const editRow = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 9;
+      const fields = [
+        { key: 'date', label: '日期', value: record['Date'] },
+        { key: 'dispatchNo', label: 'DispatchNo', value: record['DispatchNo'] },
+        { key: 'project', label: 'Project', value: record['Project'] },
+        { key: 'role', label: '角色', value: record['角色'] },
+        { key: 'unitPrice', label: '單價', value: record['單價'] },
+        { key: 'transportation', label: '交通費', value: record['交通費'] },
+        { key: 'lodging', label: '住宿費', value: record['住宿費'] },
+        { key: 'overtimeHours', label: '加班時數', value: record['加班時數'] }
+      ];
+      const inputs = {};
+      fields.forEach(function (f) {
+        const label = document.createElement('label');
+        label.textContent = f.label;
+        const input = document.createElement('input');
+        input.value = f.value;
+        inputs[f.key] = input;
+        td.appendChild(label);
+        td.appendChild(input);
+      });
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = '儲存';
+      saveBtn.addEventListener('click', function () {
+        const edits = {
+          date: inputs.date.value,
+          dispatchNo: inputs.dispatchNo.value,
+          project: inputs.project.value,
+          role: inputs.role.value,
+          unitPrice: Number(inputs.unitPrice.value),
+          transportation: Number(inputs.transportation.value),
+          lodging: Number(inputs.lodging.value),
+          overtimeHours: Number(inputs.overtimeHours.value)
+        };
+        saveRecordEdit(record, edits, editRow);
+      });
+      td.appendChild(saveBtn);
+      editRow.appendChild(td);
+      tr.parentNode.insertBefore(editRow, tr.nextSibling);
+    }
+
+    function saveRecordEdit(record, edits, editRow) {
+      const project = document.getElementById('recProject').value;
+      adminCallApi('adminUpdateRecord', { project: project, recordId: record['RecordID'], edits: edits })
+        .then(function (res) {
+          if (res.ok) {
+            editRow.remove();
+            searchRecords();
+          } else if (res.needsConfirmation) {
+            if (confirm('工時計算為 ' + res.hours + ' 小時，通常應為 4 或 8 小時，是否仍要送出？')) {
+              edits.forceSubmit = true;
+              saveRecordEdit(record, edits, editRow);
+            }
+          } else {
+            alert('儲存失敗：' + res.error);
+          }
+        })
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+    }
+
+    function deleteRecord(record) {
+      if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+      const project = document.getElementById('recProject').value;
+      adminCallApi('adminDeleteRecord', { project: project, recordId: record['RecordID'] })
+        .then(function (res) {
+          if (res.ok) { searchRecords(); } else { alert('刪除失敗：' + res.error); }
+        })
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+    }
+  </script>
+</body>
+</html>
