@@ -67,6 +67,13 @@ function formatDateForCompare_(dateValue) {
   return dateValue;
 }
 
+function formatTimeForCompare_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  return value;
+}
+
 function getSettings_() {
   var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('設定');
@@ -125,6 +132,9 @@ function rowToRecordObject_(sheet, rowIndex) {
   var obj = {};
   headers.forEach(function (h, i) { obj[h] = rowValues[i]; });
   obj['Date'] = formatDateForCompare_(obj['Date']);
+  obj['出發時間'] = formatTimeForCompare_(obj['出發時間']);
+  obj['上班時間'] = formatTimeForCompare_(obj['上班時間']);
+  obj['下班時間'] = formatTimeForCompare_(obj['下班時間']);
   return obj;
 }
 
@@ -133,6 +143,9 @@ function handleGetMyRecords(payload) {
   var sheet = ss.getSheetByName(payload.project + '_紀錄');
   var records = readSheetAsObjects_(sheet).map(function (r) {
     r['Date'] = formatDateForCompare_(r['Date']);
+    r['出發時間'] = formatTimeForCompare_(r['出發時間']);
+    r['上班時間'] = formatTimeForCompare_(r['上班時間']);
+    r['下班時間'] = formatTimeForCompare_(r['下班時間']);
     return r;
   });
   var filtered = records.filter(function (r) {
