@@ -64,3 +64,28 @@ test('buildExportRows：固定費用列只有 Amount 有值，其餘欄位留空
     '', 1, 'X', '', '2026-07-30', 'Warehouse fee(Zhongli)', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 124210
   ]]);
 });
+
+test('buildFooterRows：Total/匯率/Final Total 公式與備註文字正確', () => {
+  const rows = exportBuilder.buildFooterRows(5, 11, 31.62, '2026-07');
+  assert.equal(rows.length, 4);
+  assert.equal(rows[0][1], 'Total');
+  assert.equal(rows[0][20], '=SUM(U5:U11)');
+  assert.equal(rows[1][1], 'EXCHANGE RATE (USD TO NTD)');
+  assert.equal(rows[1][20], 31.62);
+  assert.equal(rows[2][1], 'FINAL TOTAL');
+  assert.equal(rows[2][20], '=U12/U13');
+  assert.equal(
+    rows[3][1],
+    '1. The exchange rate is based on the average daily exchange rate between USD and TWD from 2026/7/1 to 2026/7/31, as provided by the Bank of Taiwan（台灣銀行）.'
+  );
+});
+
+test('buildFooterRows：2 月份（非閏年）備註文字用 28 號', () => {
+  const rows = exportBuilder.buildFooterRows(5, 5, 31, '2026-02');
+  assert.match(rows[3][1], /2026\/2\/1 to 2026\/2\/28/);
+});
+
+test('buildFooterRows：每列長度都是 21（與資料列版面一致）', () => {
+  const rows = exportBuilder.buildFooterRows(5, 5, 31, '2026-02');
+  rows.forEach(function (row) { assert.equal(row.length, 21); });
+});

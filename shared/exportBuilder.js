@@ -42,9 +42,52 @@ function buildExportRows(records, startRow) {
   });
 }
 
+function lastDayOfMonth_(yearMonth) {
+  var parts = yearMonth.split('-');
+  var year = parseInt(parts[0], 10);
+  var month = parseInt(parts[1], 10);
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function buildFooterRows(startRow, lastDataRow, exchangeRate, yearMonth) {
+  var totalRow = lastDataRow + 1;
+  var rateRow = lastDataRow + 2;
+  var parts = yearMonth.split('-');
+  var year = parts[0];
+  var month = parseInt(parts[1], 10);
+  var lastDay = lastDayOfMonth_(yearMonth);
+  var noteText = '1. The exchange rate is based on the average daily exchange rate between USD and TWD from ' +
+    year + '/' + month + '/1 to ' + year + '/' + month + '/' + lastDay +
+    ', as provided by the Bank of Taiwan（台灣銀行）.';
+
+  function blankRow() {
+    var row = [];
+    for (var i = 0; i < 21; i++) row.push('');
+    return row;
+  }
+
+  var total = blankRow();
+  total[1] = 'Total';
+  total[20] = '=SUM(U' + startRow + ':U' + lastDataRow + ')';
+
+  var rate = blankRow();
+  rate[1] = 'EXCHANGE RATE (USD TO NTD)';
+  rate[20] = exchangeRate;
+
+  var final = blankRow();
+  final[1] = 'FINAL TOTAL';
+  final[20] = '=U' + totalRow + '/U' + rateRow;
+
+  var note = blankRow();
+  note[1] = noteText;
+
+  return [total, rate, final, note];
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     filterRecordsForExport: filterRecordsForExport,
-    buildExportRows: buildExportRows
+    buildExportRows: buildExportRows,
+    buildFooterRows: buildFooterRows
   };
 }
