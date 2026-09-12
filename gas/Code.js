@@ -18,6 +18,7 @@ function setupSheets() {
   ['SDI', 'HDC'].forEach(function (project) {
     getOrCreateSheet_(ss, project + '_紀錄', HEADERS);
     getOrCreateSheet_(ss, project + '_工程師', ['姓名', '啟用中']);
+    getOrCreateSheet_(ss, project + '_案場', ['案場名稱', '地址', '啟用中']);
   });
   var settingsSheet = getOrCreateSheet_(ss, '設定', ['專案', 'Dispatch No. 前綴', 'Engineer 單價', 'Worker 單價']);
   if (settingsSheet.getLastRow() < 3) {
@@ -27,6 +28,27 @@ function setupSheets() {
     ]);
   }
   Logger.log('setupSheets 完成');
+}
+
+function migrateAddRouteColumns() {
+  var ss = getSpreadsheet_();
+  var newColumns = ['案場名稱', '出發地', '抵達地', '途經', 'PDF網址'];
+  ['SDI', 'HDC'].forEach(function (project) {
+    var sheet = ss.getSheetByName(project + '_紀錄');
+    var lastCol = sheet.getLastColumn();
+    var existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    newColumns.forEach(function (col) {
+      if (existingHeaders.indexOf(col) === -1) {
+        lastCol = lastCol + 1;
+        sheet.getRange(1, lastCol).setValue(col);
+      }
+    });
+    var sitesSheet = ss.getSheetByName(project + '_案場');
+    if (!sitesSheet) {
+      ss.insertSheet(project + '_案場').appendRow(['案場名稱', '地址', '啟用中']);
+    }
+  });
+  Logger.log('migrateAddRouteColumns 完成');
 }
 
 function readSheetAsObjects_(sheet) {
