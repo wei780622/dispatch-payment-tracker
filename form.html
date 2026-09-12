@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>派工紀錄填寫</title>
+<style>
+  body { font-family: -apple-system, "PingFang TC", sans-serif; background: #f5f5f7; margin: 0; padding: 24px 16px; }
+  .card { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 14px; padding: 24px; }
+  h1 { font-size: 20px; }
+  label { display: block; margin-top: 16px; font-weight: 600; }
+  select, input[type="date"], input[type="time"], input[type="number"], input[type="text"] {
+    width: 100%; box-sizing: border-box; padding: 8px; margin-top: 6px; border-radius: 8px; border: 1px solid #ccc;
+  }
+  #dispatchChoices label { font-weight: normal; margin-top: 6px; }
+  #previewBox { margin-top: 20px; padding: 14px; background: #f0f6ff; border-radius: 8px; line-height: 1.8; }
+  #confirmHoursBox { margin-top: 12px; padding: 12px; background: #fff3cd; border-radius: 8px; display: none; }
+  #successMessage { margin-top: 16px; padding: 12px; background: #d4f7dc; border-radius: 8px; display: none; }
+  button { margin-top: 20px; width: 100%; padding: 14px; border: none; border-radius: 10px; background: #0071e3; color: #fff; font-size: 16px; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1 id="projectTitle"></h1>
+    <form id="dispatchForm">
+      <label>姓名</label>
+      <select id="engineerSelect" required></select>
+
+      <label>日期</label>
+      <input type="date" id="dateInput" required>
+
+      <label>派工選擇</label>
+      <div id="dispatchChoices"></div>
+
+      <div id="newProjectRow">
+        <label>Project 說明（新增派工時填寫）</label>
+        <input type="text" id="newProjectText">
+      </div>
+
+      <div id="roleRow" style="display:none;">
+        <label>角色</label>
+        <select id="roleSelect">
+          <option value="Worker">Worker</option>
+          <option value="Engineer">Engineer</option>
+        </select>
+      </div>
+
+      <label>出發時間</label>
+      <input type="time" id="departureTime">
+
+      <label>上班時間</label>
+      <input type="time" id="startTime" required>
+
+      <label>下班時間</label>
+      <input type="time" id="endTime" required>
+
+      <label>加班時數</label>
+      <input type="number" id="overtimeHours" value="0" min="0" step="0.5">
+
+      <label>交通費</label>
+      <input type="number" id="transportation" value="0" min="0">
+
+      <label>住宿費</label>
+      <input type="number" id="lodging" value="0" min="0">
+
+      <div id="confirmHoursBox">
+        <div id="confirmHoursText"></div>
+        <label><input type="checkbox" id="forceSubmitCheckbox"> 仍要送出</label>
+      </div>
+
+      <div id="previewBox"></div>
+      <div id="successMessage">已送出！</div>
+
+      <button type="submit">送出</button>
+    </form>
+  </div>
+
+  <script src="shared.js"></script>
+  <script>
+    const project = getProjectFromUrl();
+    let openDispatches = [];
+    let lastPreviewNeedsConfirmation = false;
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      document.getElementById('projectTitle').textContent =
+        project === 'HDC' ? 'HANGANG NCS & HDC 維運表單' : 'SAMSUNG SDI 維運表單';
+      document.getElementById('roleRow').style.display = project === 'HDC' ? 'block' : 'none';
+
+      callApi('getEngineers', { project: project }).then(function (res) {
+        const select = document.getElementById('engineerSelect');
+        (res.engineers || []).forEach(function (name) {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+      });
+
+      document.getElementById('dateInput').addEventListener('change', loadOpenDispatches);
+      document.getElementById('dispatchForm').addEventListener('input', schedulePreview);
+      document.getElementById('dispatchForm').addEventListener('submit', onSubmit);
+    }
+
+    function loadOpenDispatches() {
+      const date = document.getElementById('dateInput').value;
+      if (!date) return;
+      callApi('getOpenDispatches', { project: project, date: date }).then(function (res) {
+        openDispatches = res.openDispatches || [];
+        renderDispatchChoices();
+      });
+    }
+
+    function renderDispatchChoices() {
+      const container = document.getElementById('dispatchChoices');
+      container.innerHTML = '';
+      const newLabel = document.createElement('label');
+      newLabel.innerHTML = '<input type="radio" name="dispatchChoice" value="new" checked> 新增派工';
+      container.appendChild(newLabel);
+      openDispatches.forEach(function (g) {
+        const label = document.createElement('label');
+        label.innerHTML = '<input type="radio" name="dispatchChoice" value="' + g.dispatchNo + '"> 加入既有派工：' +
+          g.dispatchNo + '（' + g.project + '）';
+        container.appendChild(label);
+      });
+      toggleNewProjectField();
+      container.querySelectorAll('input[name="dispatchChoice"]').forEach(function (input) {
+        input.addEventListener('change', function () { toggleNewProjectField(); schedulePreview(); });
+      });
+    }
+
+    function toggleNewProjectField() {
+      const choice = document.querySelector('input[name="dispatchChoice"]:checked');
+      const isNew = !choice || choice.value === 'new';
+      document.getElementById('newProjectRow').style.display = isNew ? 'block' : 'none';
+    }
+
+    function buildInputPayload(forceSubmit) {
+      const choice = document.querySelector('input[name="dispatchChoice"]:checked');
+      const isJoining = !!choice && choice.value !== 'new';
+      return {
+        project: project,
+        name: document.getElementById('engineerSelect').value,
+        date: document.getElementById('dateInput').value,
+        isJoiningExisting: isJoining,
+        joinDispatchNo: isJoining ? choice.value : null,
+        newProjectText: isJoining ? null : document.getElementById('newProjectText').value,
+        chosenRole: project === 'HDC' ? document.getElementById('roleSelect').value : null,
+        departureTime: document.getElementById('departureTime').value,
+        startTime: document.getElementById('startTime').value,
+        endTime: document.getElementById('endTime').value,
+        overtimeHours: Number(document.getElementById('overtimeHours').value || 0),
+        transportation: Number(document.getElementById('transportation').value || 0),
+        lodging: Number(document.getElementById('lodging').value || 0),
+        forceSubmit: !!forceSubmit
+      };
+    }
+
+    let previewTimer = null;
+    function schedulePreview() {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(runPreview, 400);
+    }
+
+    function runPreview() {
+      const input = buildInputPayload(false);
+      if (!input.name || !input.date || !input.startTime || !input.endTime) return;
+      callApi('previewRecord', { input: input }).then(renderPreview);
+    }
+
+    function renderPreview(res) {
+      const box = document.getElementById('previewBox');
+      const confirmBox = document.getElementById('confirmHoursBox');
+      if (!res.ok && res.needsConfirmation) {
+        lastPreviewNeedsConfirmation = true;
+        confirmBox.style.display = 'block';
+        document.getElementById('confirmHoursText').textContent =
+          '工時計算為 ' + res.hours + ' 小時，通常應為 4 或 8 小時，請確認上下班時間，或勾選下方仍要送出。';
+        box.innerHTML = '';
+        return;
+      }
+      lastPreviewNeedsConfirmation = false;
+      confirmBox.style.display = 'none';
+      if (!res.record) { box.innerHTML = ''; return; }
+      const r = res.record;
+      box.innerHTML =
+        '角色：' + r['角色'] + '（單價 ' + r['單價'] + '）<br>' +
+        '稅前單價：' + r['稅前單價'].toFixed(2) + '<br>' +
+        '工時：' + r['工時'] + ' 小時，天數：' + r['天數'] + '<br>' +
+        '加班費：' + r['加班費'].toFixed(2) + '<br>' +
+        'mark up (5%)：' + r['mark up (5%)'].toFixed(2) + '<br>' +
+        '服務費小計：' + r['服務費小計'].toFixed(2) + '<br>' +
+        '交通住宿小計：' + r['交通住宿小計'].toFixed(2) + '<br>' +
+        '<strong>合計：' + r['合計'].toFixed(2) + '</strong>';
+    }
+
+    function onSubmit(evt) {
+      evt.preventDefault();
+      const forceSubmit = lastPreviewNeedsConfirmation && document.getElementById('forceSubmitCheckbox').checked;
+      if (lastPreviewNeedsConfirmation && !forceSubmit) {
+        alert('工時不是 4 或 8 小時，請確認時間，或勾選「仍要送出」。');
+        return;
+      }
+      const input = buildInputPayload(forceSubmit);
+      callApi('submitRecord', { input: input }).then(function (res) {
+        if (res.ok) {
+          document.getElementById('dispatchForm').reset();
+          document.getElementById('previewBox').innerHTML = '';
+          document.getElementById('confirmHoursBox').style.display = 'none';
+          document.getElementById('successMessage').style.display = 'block';
+          lastPreviewNeedsConfirmation = false;
+          loadOpenDispatches();
+        } else if (res.needsConfirmation) {
+          renderPreview(res);
+        } else {
+          alert('送出失敗：' + res.error);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
