@@ -247,6 +247,76 @@ function handleDeleteMyRecord(payload) {
   }
 }
 
+function handleAdminGetRecords(payload) {
+  assertAdminPin_(payload);
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_紀錄');
+  var records = readSheetAsObjects_(sheet).map(function (r) {
+    r['Date'] = formatDateForCompare_(r['Date']);
+    r['出發時間'] = formatTimeForCompare_(r['出發時間']);
+    r['上班時間'] = formatTimeForCompare_(r['上班時間']);
+    r['下班時間'] = formatTimeForCompare_(r['下班時間']);
+    return r;
+  });
+  var filtered = records.filter(function (r) {
+    if (!payload.includeDeleted && r['狀態'] === '已刪除') return false;
+    if (payload.yearMonth && r['Date'].slice(0, 7) !== payload.yearMonth) return false;
+    if (payload.name && r['姓名'] !== payload.name) return false;
+    return true;
+  });
+  filtered.sort(function (a, b) {
+    if (a['Date'] < b['Date']) return -1;
+    if (a['Date'] > b['Date']) return 1;
+    return 0;
+  });
+  return { ok: true, records: filtered };
+}
+
+function handleAdminUpdateRecord(payload) {
+  assertAdminPin_(payload);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.project + '_紀錄');
+    var rowIndex = findRowIndexByRecordId_(sheet, payload.recordId);
+    if (rowIndex === -1) {
+      return { ok: false, error: '找不到紀錄：' + payload.recordId };
+    }
+    var record = rowToRecordObject_(sheet, rowIndex);
+    var result = buildAdminRecordUpdate(record, payload.edits || {}, new Date().toISOString());
+    if (!result.ok) {
+      return result;
+    }
+    var rowArray = rowObjectToArray(HEADERS, result.record);
+    sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([rowArray]);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleAdminDeleteRecord(payload) {
+  assertAdminPin_(payload);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.project + '_紀錄');
+    var rowIndex = findRowIndexByRecordId_(sheet, payload.recordId);
+    if (rowIndex === -1) {
+      return { ok: false, error: '找不到紀錄：' + payload.recordId };
+    }
+    var statusColumnIndex = HEADERS.indexOf('狀態') + 1;
+    var modifiedColumnIndex = HEADERS.indexOf('修改時間') + 1;
+    sheet.getRange(rowIndex, statusColumnIndex).setValue('已刪除');
+    sheet.getRange(rowIndex, modifiedColumnIndex).setValue(new Date().toISOString());
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
@@ -277,7 +347,10 @@ function doPost(e) {
     submitRecord: handleSubmitRecord,
     getMyRecords: handleGetMyRecords,
     updateMyRecord: handleUpdateMyRecord,
-    deleteMyRecord: handleDeleteMyRecord
+    deleteMyRecord: handleDeleteMyRecord,
+    adminGetRecords: handleAdminGetRecords,
+    adminUpdateRecord: handleAdminUpdateRecord,
+    adminDeleteRecord: handleAdminDeleteRecord
   };
   var handler = handlers[payload.action];
   if (!handler) {
