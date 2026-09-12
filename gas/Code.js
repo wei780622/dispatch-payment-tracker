@@ -352,6 +352,52 @@ function handleAdminUpdateSettings(payload) {
   return { ok: true };
 }
 
+function handleAdminGetEngineers(payload) {
+  assertAdminPin_(payload);
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_工程師');
+  var rows = readSheetAsObjects_(sheet);
+  var engineers = rows.map(function (r) {
+    return { name: r['姓名'], active: r['啟用中'] === true || r['啟用中'] === 'TRUE' };
+  });
+  return { ok: true, engineers: engineers };
+}
+
+function findNameRowIndex_(sheet, nameColumnHeader, name) {
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0];
+  var col = headers.indexOf(nameColumnHeader);
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][col] === name) return i + 1;
+  }
+  return -1;
+}
+
+function handleAdminAddEngineer(payload) {
+  assertAdminPin_(payload);
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_工程師');
+  var rowIndex = findNameRowIndex_(sheet, '姓名', payload.name);
+  if (rowIndex === -1) {
+    sheet.appendRow([payload.name, true]);
+  } else {
+    sheet.getRange(rowIndex, 2).setValue(true);
+  }
+  return { ok: true };
+}
+
+function handleAdminToggleEngineer(payload) {
+  assertAdminPin_(payload);
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_工程師');
+  var rowIndex = findNameRowIndex_(sheet, '姓名', payload.name);
+  if (rowIndex === -1) {
+    return { ok: false, error: '找不到工程師：' + payload.name };
+  }
+  sheet.getRange(rowIndex, 2).setValue(!!payload.active);
+  return { ok: true };
+}
+
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
@@ -388,7 +434,10 @@ function doPost(e) {
     adminDeleteRecord: handleAdminDeleteRecord,
     adminAddFixedFee: handleAdminAddFixedFee,
     adminGetSettings: handleAdminGetSettings,
-    adminUpdateSettings: handleAdminUpdateSettings
+    adminUpdateSettings: handleAdminUpdateSettings,
+    adminGetEngineers: handleAdminGetEngineers,
+    adminAddEngineer: handleAdminAddEngineer,
+    adminToggleEngineer: handleAdminToggleEngineer
   };
   var handler = handlers[payload.action];
   if (!handler) {
