@@ -28,7 +28,7 @@ function buildExportRows(records, startRow) {
       record['出發時間'],
       record['上班時間'],
       record['下班時間'],
-      '=HOUR(K' + r + '-J' + r + ')',
+      '=HOUR(MOD(K' + r + '-J' + r + ',1))',
       '=L' + r + '/8',
       record['加班時數'],
       '=(H' + r + '/8)*N' + r + '*1.34',

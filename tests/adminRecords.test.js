@@ -36,14 +36,16 @@ test('buildFixedFeeRecord：金額不是數字要丟錯誤', () => {
   ), /金額/);
 });
 
-test('buildAdminRecordUpdate：固定費用列直接合併 edits，不重新計算', () => {
+test('buildAdminRecordUpdate：固定費用列依 edits 更新對應中文欄位', () => {
   const record = {
     '類型': '固定費用', '姓名': 'Warehouse fee(Zhongli)', 'Date': '2026-07-30', '合計': 124210, '修改時間': '2026-07-30T10:00:00.000Z'
   };
   const result = adminRecords.buildAdminRecordUpdate(record, { amount: 999, description: '改過的說明' }, '2026-08-01T00:00:00.000Z');
   assert.equal(result.ok, true);
+  assert.equal(result.record['合計'], 999);
+  assert.equal(result.record['姓名'], '改過的說明');
   assert.equal(result.record['修改時間'], '2026-08-01T00:00:00.000Z');
-  assert.equal(result.record.amount, 999);
+  assert.equal(result.record['Date'], '2026-07-30');
 });
 
 test('buildAdminRecordUpdate：派工列可以改日期/派工單號/角色/單價並重新試算', () => {

@@ -65,7 +65,19 @@ function buildFixedFeeRecord(input, nowISO) {
 
 function buildAdminRecordUpdate(record, edits, nowISO) {
   if (record['類型'] === '固定費用') {
-    var updatedFee = Object.assign({}, record, edits, { '修改時間': nowISO });
+    var updatedFee = Object.assign({}, record, { '修改時間': nowISO });
+    if (edits.date !== undefined) {
+      assertNonEmptyString_(edits.date, 'Date');
+      updatedFee['Date'] = edits.date;
+    }
+    if (edits.description !== undefined) {
+      assertNonEmptyString_(edits.description, '費用說明');
+      updatedFee['姓名'] = edits.description;
+    }
+    if (edits.amount !== undefined) {
+      assertFiniteNumber_(edits.amount, '金額');
+      updatedFee['合計'] = edits.amount;
+    }
     return { ok: true, needsConfirmation: false, record: updatedFee };
   }
 

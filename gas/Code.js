@@ -8,6 +8,9 @@ function getOrCreateSheet_(ss, name, headerRow) {
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
+    if (sheet.getMaxColumns() < headerRow.length) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), headerRow.length - sheet.getMaxColumns());
+    }
     sheet.appendRow(headerRow);
   }
   return sheet;
@@ -83,15 +86,28 @@ function migrateAddRouteColumns() {
     var sheet = ss.getSheetByName(project + '_紀錄');
     var lastCol = sheet.getLastColumn();
     var existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    newColumns.forEach(function (col) {
-      if (existingHeaders.indexOf(col) === -1) {
+    var missing = newColumns.filter(function (col) { return existingHeaders.indexOf(col) === -1; });
+    if (missing.length > 0) {
+      var neededCols = lastCol + missing.length;
+      if (sheet.getMaxColumns() < neededCols) {
+        sheet.insertColumnsAfter(sheet.getMaxColumns(), neededCols - sheet.getMaxColumns());
+      }
+      missing.forEach(function (col) {
         lastCol = lastCol + 1;
         sheet.getRange(1, lastCol).setValue(col);
-      }
-    });
+      });
+    }
+    var finalHeaders = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+    if (finalHeaders.join('|') !== HEADERS.join('|')) {
+      throw new Error(project + '_紀錄 表頭與 HEADERS 不符，請人工確認：' + finalHeaders.join(','));
+    }
     var sitesSheet = ss.getSheetByName(project + '_案場');
     if (!sitesSheet) {
-      ss.insertSheet(project + '_案場').appendRow(['案場名稱', '地址', '啟用中']);
+      sitesSheet = ss.insertSheet(project + '_案場');
+      if (sitesSheet.getMaxColumns() < 3) {
+        sitesSheet.insertColumnsAfter(sitesSheet.getMaxColumns(), 3 - sitesSheet.getMaxColumns());
+      }
+      sitesSheet.appendRow(['案場名稱', '地址', '啟用中']);
     }
   });
   Logger.log('migrateAddRouteColumns 完成');
@@ -483,6 +499,12 @@ function handleAdminToggleSite(payload) {
 
 function handleExportMonthlyExcel(payload) {
   assertAdminPin_(payload);
+  if (!/^\d{4}-\d{2}$/.test(payload.yearMonth)) {
+    return { ok: false, error: '年月格式錯誤，請選擇年月' };
+  }
+  if (typeof payload.exchangeRate !== 'number' || !isFinite(payload.exchangeRate) || payload.exchangeRate <= 0) {
+    return { ok: false, error: '匯率必須是大於 0 的數字' };
+  }
   var mainSs = getSpreadsheet_();
   var sourceSheet = mainSs.getSheetByName(payload.project + '_紀錄');
   var allRecords = readSheetAsObjects_(sourceSheet).map(function (r) {
@@ -529,6 +551,7 @@ function handleExportMonthlyExcel(payload) {
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
+    Utilities.sleep(500);
     throw new Error('密碼錯誤');
   }
 }
