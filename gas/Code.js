@@ -72,6 +72,16 @@ function handleGetEngineers(payload) {
   return { ok: true, engineers: engineers };
 }
 
+function handleGetSites(payload) {
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_案場');
+  var rows = readSheetAsObjects_(sheet);
+  var sites = rows
+    .filter(function (r) { return r['啟用中'] === true || r['啟用中'] === 'TRUE'; })
+    .map(function (r) { return { name: r['案場名稱'], address: r['地址'] }; });
+  return { ok: true, sites: sites };
+}
+
 function handleGetOpenDispatches(payload) {
   var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName(payload.project + '_紀錄');
@@ -262,6 +272,7 @@ function doPost(e) {
   var handlers = {
     getEngineers: handleGetEngineers,
     getOpenDispatches: handleGetOpenDispatches,
+    getSites: handleGetSites,
     previewRecord: handlePreviewRecord,
     submitRecord: handleSubmitRecord,
     getMyRecords: handleGetMyRecords,
