@@ -46,7 +46,7 @@
         </select>
       </div>
 
-      <label>出發時間</label>
+      <label>離開案場時間</label>
       <input type="time" id="departureTime">
 
       <label>上班時間</label>
@@ -97,10 +97,26 @@
 
     document.addEventListener('DOMContentLoaded', init);
 
+    function todayISO() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return yyyy + '-' + mm + '-' + dd;
+    }
+
+    function applyFormDefaults() {
+      document.getElementById('dateInput').value = todayISO();
+      document.getElementById('startTime').value = '08:30';
+      document.getElementById('endTime').value = '17:30';
+      document.getElementById('originInput').value = '中華系統整合股份有限公司國分辦公室';
+    }
+
     function init() {
       document.getElementById('projectTitle').textContent =
         project === 'HDC' ? 'HANGANG NCS & HDC 維運表單' : 'SAMSUNG SDI 維運表單';
       document.getElementById('roleRow').style.display = project === 'HDC' ? 'block' : 'none';
+      applyFormDefaults();
 
       callApi('getEngineers', { project: project }).then(function (res) {
         const select = document.getElementById('engineerSelect');
@@ -126,8 +142,6 @@
         }
       });
 
-      document.getElementById('originInput').value = '中華系統整合股份有限公司國分辦公室';
-
       document.getElementById('siteSelect').addEventListener('change', function () {
         const opt = this.options[this.selectedIndex];
         document.getElementById('destinationInput').value = opt ? opt.dataset.address : '';
@@ -145,6 +159,7 @@
       document.getElementById('dateInput').addEventListener('change', loadOpenDispatches);
       document.getElementById('dispatchForm').addEventListener('input', schedulePreview);
       document.getElementById('dispatchForm').addEventListener('submit', onSubmit);
+      loadOpenDispatches();
     }
 
     function loadOpenDispatches() {
@@ -268,7 +283,7 @@
           document.getElementById('previewBox').innerHTML = '';
           document.getElementById('dispatchChoices').innerHTML = '';
           document.getElementById('viaPointsContainer').innerHTML = '';
-          document.getElementById('originInput').value = '中華系統整合股份有限公司國分辦公室';
+          applyFormDefaults();
           const siteSelectEl = document.getElementById('siteSelect');
           document.getElementById('destinationInput').value =
             siteSelectEl.options.length > 0 ? siteSelectEl.options[siteSelectEl.selectedIndex].dataset.address : '';
