@@ -215,6 +215,13 @@ function handleDeleteMyRecord(payload) {
   }
 }
 
+function assertAdminPin_(payload) {
+  var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
+  if (!expected || payload.adminPin !== expected) {
+    throw new Error('密碼錯誤');
+  }
+}
+
 function jsonResponse_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
