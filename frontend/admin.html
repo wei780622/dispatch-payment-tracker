@@ -74,12 +74,89 @@
       <button id="siteAddBtn">新增</button>
       <table id="siteTable"><tbody id="siteBody"></tbody></table>
     </div>
+
+    <div class="card">
+      <h1>單價設定</h1>
+      <div id="settingsForm"></div>
+      <button id="settingsSaveBtn">儲存設定</button>
+    </div>
+
+    <div class="card">
+      <h1>月結算 Excel 匯出</h1>
+      <label>專案</label>
+      <select id="exportProject"><option value="SDI">SDI</option><option value="HDC">HDC</option></select>
+      <label>年月</label>
+      <input type="month" id="exportYearMonth">
+      <label>美金匯率</label>
+      <input type="number" id="exportRate" step="0.01">
+      <button id="exportBtn">產生 Excel</button>
+    </div>
   </div>
 
   <script src="shared.js"></script>
   <script src="adminShared.js"></script>
   <script>
     let currentRecords = [];
+    let currentSettings = null;
+
+    function refreshSettings() {
+      adminCallApi('adminGetSettings', {}).then(function (res) {
+        currentSettings = res.settings;
+        const container = document.getElementById('settingsForm');
+        container.innerHTML = '';
+        ['SDI', 'HDC'].forEach(function (project) {
+          const div = document.createElement('div');
+          div.innerHTML =
+            '<strong>' + project + '</strong> ' +
+            '前綴 <input type="text" id="prefix_' + project + '" value="' + currentSettings[project].prefix + '"> ' +
+            'Engineer <input type="number" id="eng_' + project + '" value="' + currentSettings[project].rates.Engineer + '"> ' +
+            'Worker <input type="number" id="worker_' + project + '" value="' + currentSettings[project].rates.Worker + '">';
+          container.appendChild(div);
+        });
+      });
+    }
+
+    document.getElementById('settingsSaveBtn').addEventListener('click', function () {
+      const settings = {
+        SDI: {
+          prefix: document.getElementById('prefix_SDI').value,
+          rates: { Engineer: Number(document.getElementById('eng_SDI').value), Worker: Number(document.getElementById('worker_SDI').value) }
+        },
+        HDC: {
+          prefix: document.getElementById('prefix_HDC').value,
+          rates: { Engineer: Number(document.getElementById('eng_HDC').value), Worker: Number(document.getElementById('worker_HDC').value) }
+        }
+      };
+      adminCallApi('adminUpdateSettings', { settings: settings })
+        .then(function (res) { alert(res.ok ? '已儲存' : '儲存失敗：' + res.error); })
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', function () {
+      const btn = this;
+      btn.disabled = true;
+      adminCallApi('exportMonthlyExcel', {
+        project: document.getElementById('exportProject').value,
+        yearMonth: document.getElementById('exportYearMonth').value,
+        exchangeRate: Number(document.getElementById('exportRate').value)
+      }).then(function (res) {
+        btn.disabled = false;
+        if (!res.ok) { alert('匯出失敗：' + res.error); return; }
+        const byteChars = atob(res.base64);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = res.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }).catch(function (err) {
+        btn.disabled = false;
+        alert('連線異常，請稍後再試一次：' + err.message);
+      });
+    });
 
     document.addEventListener('DOMContentLoaded', function () {
       if (getAdminPin()) {
@@ -102,6 +179,7 @@
       searchRecords();
       refreshEngineers();
       refreshSites();
+      refreshSettings();
     }
 
     function searchRecords() {
