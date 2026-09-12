@@ -24,20 +24,20 @@ function buildExportRows(records, startRow) {
       record['Date'],
       record['姓名'],
       record['單價'],
-      '=G' + r + '/1.05',
+      '=ROUND(G' + r + '/1.05,0)',
       record['出發時間'],
       record['上班時間'],
       record['下班時間'],
       '=HOUR(MOD(K' + r + '-J' + r + ',1))',
       '=L' + r + '/8',
       record['加班時數'],
-      '=(H' + r + '/8)*N' + r + '*1.34',
-      '=H' + r + '*0.05*M' + r,
-      '=(H' + r + '*M' + r + ')+P' + r + '+O' + r,
+      '=ROUND((H' + r + '/8)*N' + r + '*1.34,0)',
+      '=ROUND(H' + r + '*0.05*M' + r + ',0)',
+      '=ROUND((H' + r + '*M' + r + ')+P' + r + '+O' + r + ',0)',
       record['交通費'],
       record['住宿費'],
       '=R' + r + '+S' + r,
-      '=Q' + r + '+T' + r
+      '=ROUND(Q' + r + '+T' + r + ',0)'
     ];
   });
 }
@@ -68,7 +68,7 @@ function buildFooterRows(startRow, lastDataRow, exchangeRate, yearMonth) {
 
   var total = blankRow();
   total[1] = 'Total';
-  total[20] = '=SUM(U' + startRow + ':U' + lastDataRow + ')';
+  total[20] = '=ROUND(SUM(U' + startRow + ':U' + lastDataRow + '),0)';
 
   var rate = blankRow();
   rate[1] = 'EXCHANGE RATE (USD TO NTD)';
@@ -76,7 +76,7 @@ function buildFooterRows(startRow, lastDataRow, exchangeRate, yearMonth) {
 
   var final = blankRow();
   final[1] = 'FINAL TOTAL';
-  final[20] = '=U' + totalRow + '/U' + rateRow;
+  final[20] = '=ROUND(U' + totalRow + '/U' + rateRow + ',0)';
 
   var note = blankRow();
   note[1] = noteText;

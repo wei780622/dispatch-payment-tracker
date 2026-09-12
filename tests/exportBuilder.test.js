@@ -39,8 +39,8 @@ test('buildExportRows：派工列產生正確的公式與數值（比對真實 S
   const rows = exportBuilder.buildExportRows(records, 5);
   assert.deepEqual(rows, [[
     '', 1, 'PR26A014-260707-A', '260707-(NHOA) Bigbattery', '2026-07-07', '林哲宇', 9200,
-    '=G5/1.05', '17:24', '08:30', '17:15', '=HOUR(MOD(K5-J5,1))', '=L5/8', 0,
-    '=(H5/8)*N5*1.34', '=H5*0.05*M5', '=(H5*M5)+P5+O5', 3495, 0, '=R5+S5', '=Q5+T5'
+    '=ROUND(G5/1.05,0)', '17:24', '08:30', '17:15', '=HOUR(MOD(K5-J5,1))', '=L5/8', 0,
+    '=ROUND((H5/8)*N5*1.34,0)', '=ROUND(H5*0.05*M5,0)', '=ROUND((H5*M5)+P5+O5,0)', 3495, 0, '=R5+S5', '=ROUND(Q5+T5,0)'
   ]]);
 });
 
@@ -51,7 +51,7 @@ test('buildExportRows：第二筆的公式要用正確的列號', () => {
   ];
   const rows = exportBuilder.buildExportRows(records, 5);
   assert.equal(rows[1][1], 2);
-  assert.equal(rows[1][7], '=G6/1.05');
+  assert.equal(rows[1][7], '=ROUND(G6/1.05,0)');
   assert.equal(rows[1][11], '=HOUR(MOD(K6-J6,1))');
 });
 
@@ -69,11 +69,11 @@ test('buildFooterRows：Total/匯率/Final Total 公式與備註文字正確', (
   const rows = exportBuilder.buildFooterRows(5, 11, 31.62, '2026-07');
   assert.equal(rows.length, 4);
   assert.equal(rows[0][1], 'Total');
-  assert.equal(rows[0][20], '=SUM(U5:U11)');
+  assert.equal(rows[0][20], '=ROUND(SUM(U5:U11),0)');
   assert.equal(rows[1][1], 'EXCHANGE RATE (USD TO NTD)');
   assert.equal(rows[1][20], 31.62);
   assert.equal(rows[2][1], 'FINAL TOTAL');
-  assert.equal(rows[2][20], '=U12/U13');
+  assert.equal(rows[2][20], '=ROUND(U12/U13,0)');
   assert.equal(
     rows[3][1],
     '1. The exchange rate is based on the average daily exchange rate between USD and TWD from 2026/7/1 to 2026/7/31, as provided by the Bank of Taiwan（台灣銀行）.'
