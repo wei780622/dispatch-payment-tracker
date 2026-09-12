@@ -29,6 +29,44 @@ function setupSheets() {
   Logger.log('setupSheets 完成');
 }
 
+function readSheetAsObjects_(sheet) {
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0];
+  var rows = values.slice(1);
+  return rows.map(function (row) {
+    var obj = {};
+    headers.forEach(function (h, i) { obj[h] = row[i]; });
+    return obj;
+  });
+}
+
+function handleGetEngineers(payload) {
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_工程師');
+  var rows = readSheetAsObjects_(sheet);
+  var engineers = rows
+    .filter(function (r) { return r['啟用中'] === true || r['啟用中'] === 'TRUE'; })
+    .map(function (r) { return r['姓名']; });
+  return { ok: true, engineers: engineers };
+}
+
+function handleGetOpenDispatches(payload) {
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_紀錄');
+  var records = readSheetAsObjects_(sheet).map(function (r) {
+    return { type: r['類型'], date: formatDateForCompare_(r['Date']), status: r['狀態'], DispatchNo: r['DispatchNo'], Project: r['Project'] };
+  });
+  var openDispatches = findOpenDispatches(records, payload.date);
+  return { ok: true, openDispatches: openDispatches };
+}
+
+function formatDateForCompare_(dateValue) {
+  if (Object.prototype.toString.call(dateValue) === '[object Date]') {
+    return Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return dateValue;
+}
+
 function jsonResponse_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -44,7 +82,10 @@ function doPost(e) {
   } catch (err) {
     return jsonResponse_({ ok: false, error: 'Invalid JSON payload' });
   }
-  var handlers = {};
+  var handlers = {
+    getEngineers: handleGetEngineers,
+    getOpenDispatches: handleGetOpenDispatches
+  };
   var handler = handlers[payload.action];
   if (!handler) {
     return jsonResponse_({ ok: false, error: 'Unknown action: ' + payload.action });
