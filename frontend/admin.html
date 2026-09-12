@@ -37,7 +37,7 @@
 
       <table id="recTable">
         <thead>
-          <tr><th>日期</th><th>類型</th><th>DispatchNo</th><th>Project</th><th>姓名</th><th>角色</th><th>單價</th><th>合計</th><th>狀態</th><th></th></tr>
+          <tr><th>日期</th><th>類型</th><th>DispatchNo</th><th>Project</th><th>姓名</th><th>單價</th><th>交通費</th><th>住宿費</th><th>合計</th><th>狀態</th><th></th></tr>
         </thead>
         <tbody id="recBody"></tbody>
       </table>
@@ -202,7 +202,7 @@
       body.innerHTML = '';
       currentRecords.forEach(function (r) {
         const tr = document.createElement('tr');
-        const cells = [r['Date'], r['類型'], r['DispatchNo'], r['Project'], r['姓名'], r['角色'], r['單價'], r['合計'], r['狀態']];
+        const cells = [r['Date'], r['類型'], r['DispatchNo'], r['Project'], r['姓名'], r['單價'], r['交通費'], r['住宿費'], r['合計'], r['狀態']];
         cells.forEach(function (value) {
           const td = document.createElement('td');
           td.textContent = value;
@@ -225,7 +225,7 @@
     function showEditForm(tr, record) {
       const editRow = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 10;
+      td.colSpan = 11;
       const isFee = record['類型'] === '固定費用';
       const fields = isFee ? [
         { key: 'date', label: '日期', value: record['Date'] },
