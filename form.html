@@ -79,6 +79,10 @@
       <input type="number" id="transportation" value="0" min="0">
       <p class="fieldHint">公務車或自用車路程公里費不用填，只填高鐵或計程車費</p>
 
+      <label>公里數</label>
+      <input type="number" id="kilometers" value="0" min="0">
+      <p class="fieldHint">每公里 15 元，公務車或自用車路程請填這裡</p>
+
       <label>住宿費</label>
       <input type="number" id="lodging" value="0" min="0">
 
@@ -268,6 +272,7 @@
         endTime: document.getElementById('endTime').value,
         overtimeHours: Number(document.getElementById('overtimeHours').value || 0),
         transportation: Number(document.getElementById('transportation').value || 0),
+        kilometers: Number(document.getElementById('kilometers').value || 0),
         lodging: Number(document.getElementById('lodging').value || 0),
         forceSubmit: !!forceSubmit
       };
