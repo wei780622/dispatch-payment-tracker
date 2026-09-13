@@ -97,6 +97,13 @@
       <input type="number" id="exportRate" step="0.01">
       <button id="exportBtn">產生 Excel</button>
       <button id="routeListBtn">產生路線清單</button>
+      <table id="routeListTable" style="display:none;">
+        <thead>
+          <tr><th></th><th>DispatchNo</th><th>日期</th><th>姓名</th><th>案場</th></tr>
+        </thead>
+        <tbody id="routeListBody"></tbody>
+      </table>
+      <button id="routeListDownloadBtn" style="display:none;">下載勾選項目</button>
     </div>
   </div>
 
@@ -166,6 +173,8 @@
       });
     });
 
+    let currentRoutes = [];
+
     document.getElementById('routeListBtn').addEventListener('click', function () {
       const btn = this;
       btn.disabled = true;
@@ -177,17 +186,60 @@
       }).then(function (res) {
         btn.disabled = false;
         if (!res.ok) { alert('匯出失敗：' + res.error); return; }
-        const blob = new Blob([JSON.stringify(res.routes, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'routes_' + project + '_' + yearMonth + '.json';
-        a.click();
-        URL.revokeObjectURL(url);
+        currentRoutes = res.routes || [];
+        renderRouteListTable();
       }).catch(function (err) {
         btn.disabled = false;
         alert('連線異常，請稍後再試一次：' + err.message);
       });
+    });
+
+    function renderRouteListTable() {
+      const table = document.getElementById('routeListTable');
+      const downloadBtn = document.getElementById('routeListDownloadBtn');
+      const body = document.getElementById('routeListBody');
+      body.innerHTML = '';
+      if (currentRoutes.length === 0) {
+        table.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        alert('這個月沒有派工紀錄');
+        return;
+      }
+      currentRoutes.forEach(function (route, index) {
+        const tr = document.createElement('tr');
+        const checkboxTd = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        checkbox.dataset.index = index;
+        checkboxTd.appendChild(checkbox);
+        tr.appendChild(checkboxTd);
+        [route.dispatchNo, route.date, route.name, route.siteName].forEach(function (value) {
+          const td = document.createElement('td');
+          td.textContent = value;
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+      table.style.display = 'table';
+      downloadBtn.style.display = 'inline-block';
+    }
+
+    document.getElementById('routeListDownloadBtn').addEventListener('click', function () {
+      const project = document.getElementById('exportProject').value;
+      const yearMonth = document.getElementById('exportYearMonth').value;
+      const checkboxes = document.querySelectorAll('#routeListBody input[type="checkbox"]');
+      const selected = Array.from(checkboxes)
+        .filter(function (cb) { return cb.checked; })
+        .map(function (cb) { return currentRoutes[Number(cb.dataset.index)]; });
+      if (selected.length === 0) { alert('請至少勾選一筆'); return; }
+      const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'routes_' + project + '_' + yearMonth + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
     });
 
     document.addEventListener('DOMContentLoaded', function () {
