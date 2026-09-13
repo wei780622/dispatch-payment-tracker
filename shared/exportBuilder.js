@@ -64,6 +64,20 @@ function buildRouteList(records, yearMonth) {
     });
 }
 
+function buildInvoiceList(records, yearMonth) {
+  return filterRecordsForExport(records, yearMonth)
+    .filter(function (r) { return (r['發票'] || '') !== ''; })
+    .map(function (r) {
+      return {
+        recordId: r['RecordID'],
+        dispatchNo: r['DispatchNo'],
+        date: r['Date'],
+        name: r['姓名'],
+        invoiceUrls: r['發票'].split(' | ')
+      };
+    });
+}
+
 function lastDayOfMonth_(yearMonth) {
   var parts = yearMonth.split('-');
   var year = parseInt(parts[0], 10);
@@ -111,6 +125,7 @@ if (typeof module !== 'undefined' && module.exports) {
     filterRecordsForExport: filterRecordsForExport,
     buildExportRows: buildExportRows,
     buildFooterRows: buildFooterRows,
-    buildRouteList: buildRouteList
+    buildRouteList: buildRouteList,
+    buildInvoiceList: buildInvoiceList
   };
 }

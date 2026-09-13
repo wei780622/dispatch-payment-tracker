@@ -81,7 +81,7 @@ function writeExportHeaderRows_(sheet) {
 
 function migrateAddRouteColumns() {
   var ss = getSpreadsheet_();
-  var newColumns = ['案場名稱', '出發地', '抵達地', '途經', 'PDF網址', '公里數'];
+  var newColumns = ['案場名稱', '出發地', '抵達地', '途經', 'PDF網址', '公里數', '發票'];
   ['SDI', 'HDC'].forEach(function (project) {
     var sheet = ss.getSheetByName(project + '_紀錄');
     var lastCol = sheet.getLastColumn();
@@ -563,6 +563,56 @@ function handleAdminExportRouteList(payload) {
   return { ok: true, routes: routes };
 }
 
+function getOrCreateInvoiceFolder_(project) {
+  var rootName = '派工薪資明細系統-發票';
+  var rootIter = DriveApp.getFoldersByName(rootName);
+  var root = rootIter.hasNext() ? rootIter.next() : DriveApp.createFolder(rootName);
+  var subIter = root.getFoldersByName(project);
+  return subIter.hasNext() ? subIter.next() : root.createFolder(project);
+}
+
+function handleAdminUploadInvoice(payload) {
+  assertAdminPin_(payload);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.project + '_紀錄');
+    var rowIndex = findRowIndexByRecordId_(sheet, payload.recordId);
+    if (rowIndex === -1) {
+      return { ok: false, error: '找不到紀錄：' + payload.recordId };
+    }
+    var folder = getOrCreateInvoiceFolder_(payload.project);
+    var bytes = Utilities.base64Decode(payload.base64);
+    var blob = Utilities.newBlob(bytes, payload.mimeType, payload.filename);
+    var file = folder.createFile(blob);
+    var invoiceColumnIndex = HEADERS.indexOf('發票') + 1;
+    var existing = sheet.getRange(rowIndex, invoiceColumnIndex).getValue();
+    var updated = existing ? existing + ' | ' + file.getUrl() : file.getUrl();
+    sheet.getRange(rowIndex, invoiceColumnIndex).setValue(updated);
+    var modifiedColumnIndex = HEADERS.indexOf('修改時間') + 1;
+    sheet.getRange(rowIndex, modifiedColumnIndex).setValue(new Date().toISOString());
+    return { ok: true, invoiceUrls: updated.split(' | ') };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleAdminExportInvoiceList(payload) {
+  assertAdminPin_(payload);
+  if (!/^\d{4}-\d{2}$/.test(payload.yearMonth)) {
+    return { ok: false, error: '年月格式錯誤，請選擇年月' };
+  }
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_紀錄');
+  var allRecords = readSheetAsObjects_(sheet).map(function (r) {
+    r['Date'] = formatDateForCompare_(r['Date']);
+    return r;
+  });
+  var invoices = buildInvoiceList(allRecords, payload.yearMonth);
+  return { ok: true, invoices: invoices };
+}
+
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
@@ -608,7 +658,9 @@ function doPost(e) {
     adminAddSite: handleAdminAddSite,
     adminToggleSite: handleAdminToggleSite,
     exportMonthlyExcel: handleExportMonthlyExcel,
-    adminExportRouteList: handleAdminExportRouteList
+    adminExportRouteList: handleAdminExportRouteList,
+    adminUploadInvoice: handleAdminUploadInvoice,
+    adminExportInvoiceList: handleAdminExportInvoiceList
   };
   var handler = handlers[payload.action];
   if (!handler) {

@@ -37,10 +37,11 @@
 
       <table id="recTable">
         <thead>
-          <tr><th>日期</th><th>類型</th><th>DispatchNo</th><th>Project</th><th>姓名</th><th>單價</th><th>交通費</th><th>住宿費</th><th>合計</th><th>狀態</th><th></th></tr>
+          <tr><th>日期</th><th>類型</th><th>DispatchNo</th><th>Project</th><th>姓名</th><th>單價</th><th>交通費</th><th>住宿費</th><th>合計</th><th>狀態</th><th>發票</th><th></th></tr>
         </thead>
         <tbody id="recBody"></tbody>
       </table>
+      <input type="file" id="invoiceFileInput" multiple accept="image/*,.pdf" style="display:none;">
     </div>
 
     <div class="card">
@@ -104,6 +105,14 @@
         <tbody id="routeListBody"></tbody>
       </table>
       <button id="routeListDownloadBtn" style="display:none;">下載勾選項目</button>
+      <button id="invoiceListBtn">產生發票清單</button>
+      <table id="invoiceListTable" style="display:none;">
+        <thead>
+          <tr><th></th><th>DispatchNo</th><th>日期</th><th>姓名</th><th>發票數量</th></tr>
+        </thead>
+        <tbody id="invoiceListBody"></tbody>
+      </table>
+      <button id="invoiceListDownloadBtn" style="display:none;">下載勾選項目</button>
     </div>
   </div>
 
@@ -242,6 +251,75 @@
       URL.revokeObjectURL(url);
     });
 
+    let currentInvoices = [];
+
+    document.getElementById('invoiceListBtn').addEventListener('click', function () {
+      const btn = this;
+      btn.disabled = true;
+      const project = document.getElementById('exportProject').value;
+      const yearMonth = document.getElementById('exportYearMonth').value;
+      adminCallApi('adminExportInvoiceList', {
+        project: project,
+        yearMonth: yearMonth
+      }).then(function (res) {
+        btn.disabled = false;
+        if (!res.ok) { alert('匯出失敗：' + res.error); return; }
+        currentInvoices = res.invoices || [];
+        renderInvoiceListTable();
+      }).catch(function (err) {
+        btn.disabled = false;
+        alert('連線異常，請稍後再試一次：' + err.message);
+      });
+    });
+
+    function renderInvoiceListTable() {
+      const table = document.getElementById('invoiceListTable');
+      const downloadBtn = document.getElementById('invoiceListDownloadBtn');
+      const body = document.getElementById('invoiceListBody');
+      body.innerHTML = '';
+      if (currentInvoices.length === 0) {
+        table.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        alert('這個月沒有上傳發票的紀錄');
+        return;
+      }
+      currentInvoices.forEach(function (invoice, index) {
+        const tr = document.createElement('tr');
+        const checkboxTd = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        checkbox.dataset.index = index;
+        checkboxTd.appendChild(checkbox);
+        tr.appendChild(checkboxTd);
+        [invoice.dispatchNo, invoice.date, invoice.name, invoice.invoiceUrls.length].forEach(function (value) {
+          const td = document.createElement('td');
+          td.textContent = value;
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+      table.style.display = 'table';
+      downloadBtn.style.display = 'inline-block';
+    }
+
+    document.getElementById('invoiceListDownloadBtn').addEventListener('click', function () {
+      const project = document.getElementById('exportProject').value;
+      const yearMonth = document.getElementById('exportYearMonth').value;
+      const checkboxes = document.querySelectorAll('#invoiceListBody input[type="checkbox"]');
+      const selected = Array.from(checkboxes)
+        .filter(function (cb) { return cb.checked; })
+        .map(function (cb) { return currentInvoices[Number(cb.dataset.index)]; });
+      if (selected.length === 0) { alert('請至少勾選一筆'); return; }
+      const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'invoices_' + project + '_' + yearMonth + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
       if (getAdminPin()) {
         showAdminContent();
@@ -291,6 +369,18 @@
           td.textContent = value;
           tr.appendChild(td);
         });
+        const invoiceTd = document.createElement('td');
+        const invoiceUrls = (r['發票'] || '').split(' | ').filter(Boolean);
+        invoiceUrls.forEach(function (url, i) {
+          const a = document.createElement('a');
+          a.href = url;
+          a.target = '_blank';
+          a.textContent = '發票' + (i + 1);
+          a.style.marginRight = '6px';
+          invoiceTd.appendChild(a);
+        });
+        if (invoiceUrls.length === 0) invoiceTd.textContent = '-';
+        tr.appendChild(invoiceTd);
         const actionTd = document.createElement('td');
         const editBtn = document.createElement('button');
         editBtn.textContent = '編輯';
@@ -298,17 +388,67 @@
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '刪除';
         deleteBtn.addEventListener('click', function () { deleteRecord(r); });
+        const uploadBtn = document.createElement('button');
+        uploadBtn.textContent = '上傳發票';
+        uploadBtn.addEventListener('click', function () { startInvoiceUpload(r); });
         actionTd.appendChild(editBtn);
         actionTd.appendChild(deleteBtn);
+        actionTd.appendChild(uploadBtn);
         tr.appendChild(actionTd);
         body.appendChild(tr);
       });
     }
 
+    let pendingInvoiceRecord = null;
+
+    function startInvoiceUpload(record) {
+      pendingInvoiceRecord = record;
+      document.getElementById('invoiceFileInput').click();
+    }
+
+    function fileToBase64(file) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function () { resolve(reader.result.split(',')[1]); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('invoiceFileInput').addEventListener('change', function () {
+      const files = Array.from(this.files);
+      this.value = '';
+      if (files.length === 0 || !pendingInvoiceRecord) return;
+      const project = document.getElementById('recProject').value;
+      const recordId = pendingInvoiceRecord['RecordID'];
+      let chain = Promise.resolve();
+      files.forEach(function (file) {
+        chain = chain.then(function () {
+          return fileToBase64(file).then(function (base64) {
+            return adminCallApi('adminUploadInvoice', {
+              project: project,
+              recordId: recordId,
+              filename: file.name,
+              mimeType: file.type || 'application/octet-stream',
+              base64: base64
+            });
+          });
+        });
+      });
+      chain.then(function (lastRes) {
+        if (lastRes && !lastRes.ok) { alert('上傳失敗：' + lastRes.error); }
+        pendingInvoiceRecord = null;
+        searchRecords();
+      }).catch(function (err) {
+        pendingInvoiceRecord = null;
+        alert('連線異常，請稍後再試一次：' + err.message);
+      });
+    });
+
     function showEditForm(tr, record) {
       const editRow = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 11;
+      td.colSpan = 12;
       const isFee = record['類型'] === '固定費用';
       const fields = isFee ? [
         { key: 'date', label: '日期', value: record['Date'] },

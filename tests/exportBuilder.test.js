@@ -144,3 +144,45 @@ test('buildRouteList：依日期排序（沿用 filterRecordsForExport 的排序
   assert.equal(result[0].dispatchNo, 'A');
   assert.equal(result[1].dispatchNo, 'B');
 });
+
+test('buildInvoiceList：只留下當月、狀態正常、且有上傳發票的紀錄', () => {
+  const records = [
+    {
+      'RecordID': 'r1', 'DispatchNo': 'PR26A014-260913-A', 'Date': '2026-09-13', '狀態': '正常',
+      '類型': '派工', '姓名': '沈智偉', '發票': 'https://drive.google.com/file/d/abc/view'
+    },
+    {
+      'RecordID': 'r2', 'DispatchNo': 'PR26A014-260914-A', 'Date': '2026-09-14', '狀態': '正常',
+      '類型': '派工', '姓名': '顏世凱', '發票': ''
+    },
+    {
+      'RecordID': 'r3', 'DispatchNo': 'X', 'Date': '2026-09-20', '狀態': '正常',
+      '類型': '固定費用', '姓名': 'Warehouse fee(Taipei)', '發票': 'https://drive.google.com/file/d/xyz/view'
+    }
+  ];
+  const result = exportBuilder.buildInvoiceList(records, '2026-09');
+  assert.equal(result.length, 2);
+  assert.deepEqual(result[0], {
+    recordId: 'r1',
+    dispatchNo: 'PR26A014-260913-A',
+    date: '2026-09-13',
+    name: '沈智偉',
+    invoiceUrls: ['https://drive.google.com/file/d/abc/view']
+  });
+  assert.deepEqual(result[1], {
+    recordId: 'r3',
+    dispatchNo: 'X',
+    date: '2026-09-20',
+    name: 'Warehouse fee(Taipei)',
+    invoiceUrls: ['https://drive.google.com/file/d/xyz/view']
+  });
+});
+
+test('buildInvoiceList：一筆紀錄多張發票時用 " | " 拆成陣列', () => {
+  const records = [{
+    'RecordID': 'r1', 'DispatchNo': 'A', 'Date': '2026-09-13', '狀態': '正常', '類型': '派工',
+    '姓名': 'x', '發票': 'https://drive.google.com/a | https://drive.google.com/b'
+  }];
+  const result = exportBuilder.buildInvoiceList(records, '2026-09');
+  assert.deepEqual(result[0].invoiceUrls, ['https://drive.google.com/a', 'https://drive.google.com/b']);
+});
