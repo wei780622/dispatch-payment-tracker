@@ -47,6 +47,23 @@ function buildExportRows(records, startRow) {
   });
 }
 
+function buildRouteList(records, yearMonth) {
+  return filterRecordsForExport(records, yearMonth)
+    .filter(function (r) { return r['類型'] === '派工'; })
+    .map(function (r) {
+      return {
+        dispatchNo: r['DispatchNo'],
+        date: r['Date'],
+        name: r['姓名'],
+        siteName: r['案場名稱'],
+        origin: r['出發地'],
+        destination: r['抵達地'],
+        viaPoints: r['途經'],
+        kilometers: r['公里數'] || 0
+      };
+    });
+}
+
 function lastDayOfMonth_(yearMonth) {
   var parts = yearMonth.split('-');
   var year = parseInt(parts[0], 10);
@@ -93,6 +110,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     filterRecordsForExport: filterRecordsForExport,
     buildExportRows: buildExportRows,
-    buildFooterRows: buildFooterRows
+    buildFooterRows: buildFooterRows,
+    buildRouteList: buildRouteList
   };
 }

@@ -99,3 +99,48 @@ test('buildFooterRows：每列長度都是 21（與資料列版面一致）', ()
   const rows = exportBuilder.buildFooterRows(5, 5, 31, '2026-02');
   rows.forEach(function (row) { assert.equal(row.length, 21); });
 });
+
+test('buildRouteList：只留下當月、狀態正常的派工紀錄，欄位對應正確', () => {
+  const records = [
+    {
+      'DispatchNo': 'PR26A014-260913-A', 'Date': '2026-09-13', '狀態': '正常', '類型': '派工',
+      '姓名': '沈智偉', '案場名稱': 'Tatung Dongshan', '出發地': 'CSI台北辦公室',
+      '抵達地': 'Tatung Dongshan', '途經': '', '公里數': 20
+    },
+    { 'DispatchNo': 'X', 'Date': '2026-09-30', '狀態': '正常', '類型': '固定費用', '姓名': 'Warehouse fee(Taipei)' },
+    { 'DispatchNo': 'PR26A014-260805-A', 'Date': '2026-08-05', '狀態': '正常', '類型': '派工', '姓名': '林哲宇' },
+    {
+      'DispatchNo': 'PR26A014-260920-A', 'Date': '2026-09-20', '狀態': '已刪除', '類型': '派工', '姓名': '林哲宇'
+    }
+  ];
+  const result = exportBuilder.buildRouteList(records, '2026-09');
+  assert.deepEqual(result, [{
+    dispatchNo: 'PR26A014-260913-A',
+    date: '2026-09-13',
+    name: '沈智偉',
+    siteName: 'Tatung Dongshan',
+    origin: 'CSI台北辦公室',
+    destination: 'Tatung Dongshan',
+    viaPoints: '',
+    kilometers: 20
+  }]);
+});
+
+test('buildRouteList：公里數缺欄位（舊資料）時預設 0', () => {
+  const records = [{
+    'DispatchNo': 'A', 'Date': '2026-09-01', '狀態': '正常', '類型': '派工',
+    '姓名': 'x', '案場名稱': 's', '出發地': 'o', '抵達地': 'd', '途經': ''
+  }];
+  const result = exportBuilder.buildRouteList(records, '2026-09');
+  assert.equal(result[0].kilometers, 0);
+});
+
+test('buildRouteList：依日期排序（沿用 filterRecordsForExport 的排序）', () => {
+  const records = [
+    { 'DispatchNo': 'B', 'Date': '2026-09-20', '狀態': '正常', '類型': '派工', '姓名': 'b' },
+    { 'DispatchNo': 'A', 'Date': '2026-09-05', '狀態': '正常', '類型': '派工', '姓名': 'a' }
+  ];
+  const result = exportBuilder.buildRouteList(records, '2026-09');
+  assert.equal(result[0].dispatchNo, 'A');
+  assert.equal(result[1].dispatchNo, 'B');
+});
