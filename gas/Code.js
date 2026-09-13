@@ -548,6 +548,21 @@ function handleExportMonthlyExcel(payload) {
   return { ok: true, filename: filename, base64: base64 };
 }
 
+function handleAdminExportRouteList(payload) {
+  assertAdminPin_(payload);
+  if (!/^\d{4}-\d{2}$/.test(payload.yearMonth)) {
+    return { ok: false, error: '年月格式錯誤，請選擇年月' };
+  }
+  var ss = getSpreadsheet_();
+  var sheet = ss.getSheetByName(payload.project + '_紀錄');
+  var allRecords = readSheetAsObjects_(sheet).map(function (r) {
+    r['Date'] = formatDateForCompare_(r['Date']);
+    return r;
+  });
+  var routes = buildRouteList(allRecords, payload.yearMonth);
+  return { ok: true, routes: routes };
+}
+
 function assertAdminPin_(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
   if (!expected || payload.adminPin !== expected) {
@@ -592,7 +607,8 @@ function doPost(e) {
     adminGetSites: handleAdminGetSites,
     adminAddSite: handleAdminAddSite,
     adminToggleSite: handleAdminToggleSite,
-    exportMonthlyExcel: handleExportMonthlyExcel
+    exportMonthlyExcel: handleExportMonthlyExcel,
+    adminExportRouteList: handleAdminExportRouteList
   };
   var handler = handlers[payload.action];
   if (!handler) {

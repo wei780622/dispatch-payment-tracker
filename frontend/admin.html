@@ -96,6 +96,7 @@
       <label>美金匯率</label>
       <input type="number" id="exportRate" step="0.01">
       <button id="exportBtn">產生 Excel</button>
+      <button id="routeListBtn">產生路線清單</button>
     </div>
   </div>
 
@@ -157,6 +158,30 @@
         const a = document.createElement('a');
         a.href = url;
         a.download = res.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }).catch(function (err) {
+        btn.disabled = false;
+        alert('連線異常，請稍後再試一次：' + err.message);
+      });
+    });
+
+    document.getElementById('routeListBtn').addEventListener('click', function () {
+      const btn = this;
+      btn.disabled = true;
+      const project = document.getElementById('exportProject').value;
+      const yearMonth = document.getElementById('exportYearMonth').value;
+      adminCallApi('adminExportRouteList', {
+        project: project,
+        yearMonth: yearMonth
+      }).then(function (res) {
+        btn.disabled = false;
+        if (!res.ok) { alert('匯出失敗：' + res.error); return; }
+        const blob = new Blob([JSON.stringify(res.routes, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'routes_' + project + '_' + yearMonth + '.json';
         a.click();
         URL.revokeObjectURL(url);
       }).catch(function (err) {
