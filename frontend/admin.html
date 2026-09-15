@@ -14,6 +14,16 @@
   table { width: 100%; border-collapse: collapse; margin-top: 16px; }
   th, td { border-bottom: 1px solid #eee; padding: 6px; text-align: left; font-size: 13px; }
   #loginGate { max-width: 320px; margin: 80px auto; text-align: center; }
+  button:disabled { opacity: 0.6; cursor: default; }
+
+  .spinner {
+    display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px;
+    border: 2px solid rgba(0, 0, 0, 0.15); border-top-color: #0071e3;
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loadingRow { text-align: center !important; color: #86868b; padding: 20px 8px !important; }
+  .loadingHint { color: #86868b; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -129,8 +139,9 @@
     let currentSettings = null;
 
     function refreshSettings() {
+      document.getElementById('settingsForm').innerHTML = '<span class="loadingHint"><span class="spinner"></span>載入中…</span>';
       adminCallApi('adminGetSettings', {}).then(function (res) {
-        if (!res.ok) { alert('讀取設定失敗：' + res.error); return; }
+        if (!res.ok) { alert('讀取設定失敗：' + res.error); document.getElementById('settingsForm').innerHTML = ''; return; }
         currentSettings = res.settings;
         const container = document.getElementById('settingsForm');
         container.innerHTML = '';
@@ -143,10 +154,14 @@
             'Worker <input type="number" id="worker_' + project + '" value="' + currentSettings[project].rates.Worker + '">';
           container.appendChild(div);
         });
-      }).catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+      }).catch(function (err) {
+        alert('連線異常，請稍後再試一次：' + err.message);
+        document.getElementById('settingsForm').innerHTML = '';
+      });
     }
 
     document.getElementById('settingsSaveBtn').addEventListener('click', function () {
+      const restore = setBtnLoading(this, '儲存中…');
       const settings = {
         SDI: {
           prefix: document.getElementById('prefix_SDI').value,
@@ -159,18 +174,17 @@
       };
       adminCallApi('adminUpdateSettings', { settings: settings })
         .then(function (res) { alert(res.ok ? '已儲存' : '儲存失敗：' + res.error); })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); })
+        .then(restore);
     });
 
     document.getElementById('exportBtn').addEventListener('click', function () {
-      const btn = this;
-      btn.disabled = true;
+      const restore = setBtnLoading(this, '產生中…');
       adminCallApi('exportMonthlyExcel', {
         project: document.getElementById('exportProject').value,
         yearMonth: document.getElementById('exportYearMonth').value,
         exchangeRate: Number(document.getElementById('exportRate').value)
       }).then(function (res) {
-        btn.disabled = false;
         if (!res.ok) { alert('匯出失敗：' + res.error); return; }
         const byteChars = atob(res.base64);
         const byteNumbers = new Array(byteChars.length);
@@ -183,30 +197,26 @@
         a.click();
         URL.revokeObjectURL(url);
       }).catch(function (err) {
-        btn.disabled = false;
         alert('連線異常，請稍後再試一次：' + err.message);
-      });
+      }).then(restore);
     });
 
     let currentRoutes = [];
 
     document.getElementById('routeListBtn').addEventListener('click', function () {
-      const btn = this;
-      btn.disabled = true;
+      const restore = setBtnLoading(this, '產生中…');
       const project = document.getElementById('exportProject').value;
       const yearMonth = document.getElementById('exportYearMonth').value;
       adminCallApi('adminExportRouteList', {
         project: project,
         yearMonth: yearMonth
       }).then(function (res) {
-        btn.disabled = false;
         if (!res.ok) { alert('匯出失敗：' + res.error); return; }
         currentRoutes = res.routes || [];
         renderRouteListTable();
       }).catch(function (err) {
-        btn.disabled = false;
         alert('連線異常，請稍後再試一次：' + err.message);
-      });
+      }).then(restore);
     });
 
     function renderRouteListTable() {
@@ -260,22 +270,19 @@
     let currentInvoices = [];
 
     document.getElementById('invoiceListBtn').addEventListener('click', function () {
-      const btn = this;
-      btn.disabled = true;
+      const restore = setBtnLoading(this, '產生中…');
       const project = document.getElementById('exportProject').value;
       const yearMonth = document.getElementById('exportYearMonth').value;
       adminCallApi('adminExportInvoiceList', {
         project: project,
         yearMonth: yearMonth
       }).then(function (res) {
-        btn.disabled = false;
         if (!res.ok) { alert('匯出失敗：' + res.error); return; }
         currentInvoices = res.invoices || [];
         renderInvoiceListTable();
       }).catch(function (err) {
-        btn.disabled = false;
         alert('連線異常，請稍後再試一次：' + err.message);
-      });
+      }).then(restore);
     });
 
     function renderInvoiceListTable() {
@@ -355,13 +362,20 @@
       const yearMonth = document.getElementById('recYearMonth').value;
       const name = document.getElementById('recName').value;
       const includeDeleted = document.getElementById('recIncludeDeleted').checked;
+      const restore = setBtnLoading(document.getElementById('recSearchBtn'), '查詢中…');
+      setTableLoading(document.getElementById('recBody'), 12);
       adminCallApi('adminGetRecords', { project: project, yearMonth: yearMonth, name: name, includeDeleted: includeDeleted })
         .then(function (res) {
-          if (!res.ok) { alert('查詢失敗：' + res.error); return; }
-          currentRecords = res.records || [];
+          if (!res.ok) { alert('查詢失敗：' + res.error); currentRecords = []; }
+          else { currentRecords = res.records || []; }
           renderRecordTable();
         })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) {
+          alert('連線異常，請稍後再試一次：' + err.message);
+          currentRecords = [];
+          renderRecordTable();
+        })
+        .then(restore);
     }
 
     function renderRecordTable() {
@@ -393,10 +407,10 @@
         editBtn.addEventListener('click', function () { showEditForm(tr, r); });
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '刪除';
-        deleteBtn.addEventListener('click', function () { deleteRecord(r); });
+        deleteBtn.addEventListener('click', function (evt) { deleteRecord(r, evt.target); });
         const uploadBtn = document.createElement('button');
         uploadBtn.textContent = '上傳發票';
-        uploadBtn.addEventListener('click', function () { startInvoiceUpload(r); });
+        uploadBtn.addEventListener('click', function (evt) { startInvoiceUpload(r, evt.target); });
         actionTd.appendChild(editBtn);
         actionTd.appendChild(deleteBtn);
         actionTd.appendChild(uploadBtn);
@@ -406,9 +420,11 @@
     }
 
     let pendingInvoiceRecord = null;
+    let pendingInvoiceBtn = null;
 
-    function startInvoiceUpload(record) {
+    function startInvoiceUpload(record, btn) {
       pendingInvoiceRecord = record;
+      pendingInvoiceBtn = btn;
       document.getElementById('invoiceFileInput').click();
     }
 
@@ -425,6 +441,7 @@
       const files = Array.from(this.files);
       this.value = '';
       if (files.length === 0 || !pendingInvoiceRecord) return;
+      const restore = pendingInvoiceBtn ? setBtnLoading(pendingInvoiceBtn, '上傳中…') : null;
       const project = document.getElementById('recProject').value;
       const recordId = pendingInvoiceRecord['RecordID'];
       let chain = Promise.resolve();
@@ -444,11 +461,13 @@
       chain.then(function (lastRes) {
         if (lastRes && !lastRes.ok) { alert('上傳失敗：' + lastRes.error); }
         pendingInvoiceRecord = null;
+        pendingInvoiceBtn = null;
         searchRecords();
       }).catch(function (err) {
         pendingInvoiceRecord = null;
+        pendingInvoiceBtn = null;
         alert('連線異常，請稍後再試一次：' + err.message);
-      });
+      }).then(function () { if (restore) restore(); });
     });
 
     function showEditForm(tr, record) {
@@ -483,7 +502,7 @@
       });
       const saveBtn = document.createElement('button');
       saveBtn.textContent = '儲存';
-      saveBtn.addEventListener('click', function () {
+      saveBtn.addEventListener('click', function (evt) {
         const edits = isFee ? {
           date: inputs.date.value,
           description: inputs.description.value,
@@ -499,14 +518,15 @@
           lodging: Number(inputs.lodging.value),
           overtimeHours: Number(inputs.overtimeHours.value)
         };
-        saveRecordEdit(record, edits, editRow);
+        saveRecordEdit(record, edits, editRow, evt.target);
       });
       td.appendChild(saveBtn);
       editRow.appendChild(td);
       tr.parentNode.insertBefore(editRow, tr.nextSibling);
     }
 
-    function saveRecordEdit(record, edits, editRow) {
+    function saveRecordEdit(record, edits, editRow, btn) {
+      const restore = setBtnLoading(btn, '儲存中…');
       const project = document.getElementById('recProject').value;
       adminCallApi('adminUpdateRecord', { project: project, recordId: record['RecordID'], edits: edits })
         .then(function (res) {
@@ -514,25 +534,32 @@
             editRow.remove();
             searchRecords();
           } else if (res.needsConfirmation) {
+            restore();
             if (confirm('工時計算為 ' + res.hours + ' 小時，通常應為 4 或 8 小時，是否仍要送出？')) {
               edits.forceSubmit = true;
-              saveRecordEdit(record, edits, editRow);
+              saveRecordEdit(record, edits, editRow, btn);
             }
+            return;
           } else {
             alert('儲存失敗：' + res.error);
           }
+          restore();
         })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) {
+          alert('連線異常，請稍後再試一次：' + err.message);
+          restore();
+        });
     }
 
-    function deleteRecord(record) {
+    function deleteRecord(record, btn) {
       if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+      const restore = setBtnLoading(btn, '刪除中…');
       const project = document.getElementById('recProject').value;
       adminCallApi('adminDeleteRecord', { project: project, recordId: record['RecordID'] })
         .then(function (res) {
-          if (res.ok) { searchRecords(); } else { alert('刪除失敗：' + res.error); }
+          if (res.ok) { searchRecords(); } else { alert('刪除失敗：' + res.error); restore(); }
         })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); restore(); });
     }
 
     document.getElementById('feeDescriptionSelect').addEventListener('change', function () {
@@ -540,6 +567,7 @@
     });
 
     document.getElementById('feeAddBtn').addEventListener('click', function () {
+      const restore = setBtnLoading(this, '新增中…');
       const descSelect = document.getElementById('feeDescriptionSelect');
       const description = descSelect.value === '__other__'
         ? document.getElementById('feeDescriptionOther').value
@@ -553,22 +581,26 @@
         .then(function (res) {
           if (res.ok) { alert('已新增'); } else { alert('新增失敗：' + res.error); }
         })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); })
+        .then(restore);
     });
 
     document.getElementById('engRefreshBtn').addEventListener('click', refreshEngineers);
     document.getElementById('engAddBtn').addEventListener('click', function () {
       const name = document.getElementById('engNewName').value.trim();
       if (!name) return;
+      const restore = setBtnLoading(this, '新增中…');
       adminCallApi('adminAddEngineer', { project: document.getElementById('engProject').value, name: name })
         .then(function () { document.getElementById('engNewName').value = ''; refreshEngineers(); })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); })
+        .then(restore);
     });
 
     function refreshEngineers() {
+      setTableLoading(document.getElementById('engBody'), 2);
       adminCallApi('adminGetEngineers', { project: document.getElementById('engProject').value })
         .then(function (res) {
-          if (!res.ok) { alert('讀取工程師名單失敗：' + res.error); return; }
+          if (!res.ok) { alert('讀取工程師名單失敗：' + res.error); document.getElementById('engBody').innerHTML = ''; return; }
           const body = document.getElementById('engBody');
           body.innerHTML = '';
           (res.engineers || []).forEach(function (e) {
@@ -578,9 +610,11 @@
             const toggleTd = document.createElement('td');
             const btn = document.createElement('button');
             btn.textContent = e.active ? '停用' : '啟用';
-            btn.addEventListener('click', function () {
+            btn.addEventListener('click', function (evt) {
+              const restore = setBtnLoading(evt.target, '處理中…');
               adminCallApi('adminToggleEngineer', { project: document.getElementById('engProject').value, name: e.name, active: !e.active })
-                .then(refreshEngineers);
+                .then(refreshEngineers)
+                .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); restore(); });
             });
             toggleTd.appendChild(btn);
             tr.appendChild(nameTd);
@@ -588,7 +622,10 @@
             body.appendChild(tr);
           });
         })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) {
+          alert('連線異常，請稍後再試一次：' + err.message);
+          document.getElementById('engBody').innerHTML = '';
+        });
     }
 
     document.getElementById('siteRefreshBtn').addEventListener('click', refreshSites);
@@ -597,6 +634,7 @@
       const address = document.getElementById('siteNewAddress').value.trim();
       const chineseName = document.getElementById('siteNewChineseName').value.trim();
       if (!name || !address) return;
+      const restore = setBtnLoading(this, '新增中…');
       adminCallApi('adminAddSite', { project: document.getElementById('siteProject').value, name: name, address: address, chineseName: chineseName })
         .then(function () {
           document.getElementById('siteNewName').value = '';
@@ -604,20 +642,25 @@
           document.getElementById('siteNewChineseName').value = '';
           refreshSites();
         })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); })
+        .then(restore);
     });
 
     function refreshSites() {
+      setTableLoading(document.getElementById('siteBody'), 5);
       adminCallApi('adminGetSites', { project: document.getElementById('siteProject').value })
         .then(function (res) {
-          if (!res.ok) { alert('讀取案場名單失敗：' + res.error); return; }
+          if (!res.ok) { alert('讀取案場名單失敗：' + res.error); document.getElementById('siteBody').innerHTML = ''; return; }
           const body = document.getElementById('siteBody');
           body.innerHTML = '';
           (res.sites || []).forEach(function (s) {
             renderSiteRow(s);
           });
         })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) {
+          alert('連線異常，請稍後再試一次：' + err.message);
+          document.getElementById('siteBody').innerHTML = '';
+        });
     }
 
     function renderSiteRow(s) {
@@ -631,16 +674,18 @@
       const actionTd = document.createElement('td');
       const toggleBtn = document.createElement('button');
       toggleBtn.textContent = s.active ? '停用' : '啟用';
-      toggleBtn.addEventListener('click', function () {
+      toggleBtn.addEventListener('click', function (evt) {
+        const restore = setBtnLoading(evt.target, '處理中…');
         adminCallApi('adminToggleSite', { project: document.getElementById('siteProject').value, name: s.name, active: !s.active })
-          .then(refreshSites);
+          .then(refreshSites)
+          .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); restore(); });
       });
       const editBtn = document.createElement('button');
       editBtn.textContent = '編輯';
       editBtn.addEventListener('click', function () { showSiteEditForm(tr, s); });
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = '刪除';
-      deleteBtn.addEventListener('click', function () { deleteSite(s); });
+      deleteBtn.addEventListener('click', function (evt) { deleteSite(s, evt.target); });
       actionTd.appendChild(toggleBtn);
       actionTd.appendChild(editBtn);
       actionTd.appendChild(deleteBtn);
@@ -670,14 +715,15 @@
       });
       const saveBtn = document.createElement('button');
       saveBtn.textContent = '儲存';
-      saveBtn.addEventListener('click', function () {
+      saveBtn.addEventListener('click', function (evt) {
+        const restore = setBtnLoading(evt.target, '儲存中…');
         adminCallApi('adminUpdateSite', {
           project: document.getElementById('siteProject').value,
           name: site.name,
           edits: { name: nameInput.value.trim(), address: addressInput.value.trim(), chineseName: chineseNameInput.value.trim() }
         }).then(function (res) {
-          if (res.ok) { refreshSites(); } else { alert('儲存失敗：' + res.error); }
-        }).catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+          if (res.ok) { refreshSites(); } else { alert('儲存失敗：' + res.error); restore(); }
+        }).catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); restore(); });
       });
       const cancelBtn = document.createElement('button');
       cancelBtn.textContent = '取消';
@@ -688,13 +734,14 @@
       tr.parentNode.insertBefore(editRow, tr.nextSibling);
     }
 
-    function deleteSite(site) {
+    function deleteSite(site, btn) {
       if (!confirm('確定要刪除案場「' + site.name + '」嗎？此動作無法復原（不影響過去已經建立的派工紀錄）。')) return;
+      const restore = setBtnLoading(btn, '刪除中…');
       adminCallApi('adminDeleteSite', { project: document.getElementById('siteProject').value, name: site.name })
         .then(function (res) {
-          if (res.ok) { refreshSites(); } else { alert('刪除失敗：' + res.error); }
+          if (res.ok) { refreshSites(); } else { alert('刪除失敗：' + res.error); restore(); }
         })
-        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); restore(); });
     }
   </script>
 </body>

@@ -95,6 +95,16 @@
   button { border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
   button:disabled { opacity: 0.6; cursor: default; }
 
+  .spinner {
+    display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px;
+    border: 2px solid rgba(0, 0, 0, 0.15); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #dispatchChoices .loadingHint, #previewBox .loadingHint {
+    color: #86868b; font-size: 13px;
+  }
+
   #addViaPointBtn {
     margin-top: 10px; width: 100%; padding: 10px;
     background: #fff; color: var(--accent); border: 1.5px solid var(--accent);
@@ -266,17 +276,22 @@
 
       applyFormDefaults();
 
+      const engineerSelect = document.getElementById('engineerSelect');
+      setSelectLoading(engineerSelect);
       callApi('getEngineers', { project: project }).then(function (res) {
-        const select = document.getElementById('engineerSelect');
+        clearSelectLoading(engineerSelect);
         (res.engineers || []).forEach(function (name) {
           const opt = document.createElement('option');
           opt.value = name;
           opt.textContent = name;
-          select.appendChild(opt);
+          engineerSelect.appendChild(opt);
         });
       });
 
+      const siteSelect = document.getElementById('siteSelect');
+      setSelectLoading(siteSelect);
       callApi('getSites', { project: project }).then(function (res) {
+        clearSelectLoading(siteSelect);
         const select = document.getElementById('siteSelect');
         (res.sites || []).forEach(function (site) {
           const opt = document.createElement('option');
@@ -319,6 +334,7 @@
     function loadOpenDispatches() {
       const date = document.getElementById('dateInput').value;
       if (!date) return;
+      document.getElementById('dispatchChoices').innerHTML = '<span class="loadingHint"><span class="spinner"></span>載入中…</span>';
       callApi('getOpenDispatches', { project: project, date: date }).then(function (res) {
         openDispatches = res.openDispatches || [];
         renderDispatchChoices();
@@ -390,6 +406,7 @@
     function runPreview() {
       const input = buildInputPayload(false);
       if (!input.name || !input.date || !input.startTime || !input.endTime) return;
+      document.getElementById('previewBox').innerHTML = '<span class="loadingHint"><span class="spinner"></span>計算中…</span>';
       callApi('previewRecord', { input: input }).then(renderPreview).catch(function (err) {
         alert('連線異常，請稍後再試一次：' + err.message);
       });
@@ -430,7 +447,7 @@
         return;
       }
       const submitBtn = document.getElementById('submitBtn');
-      submitBtn.disabled = true;
+      const restoreSubmitBtn = setBtnLoading(submitBtn, '送出中…');
       const input = buildInputPayload(forceSubmit);
       callApi('submitRecord', { input: input }).then(function (res) {
         if (res.ok) {
@@ -447,18 +464,14 @@
           document.getElementById('successMessage').style.display = 'block';
           lastPreviewNeedsConfirmation = false;
           loadOpenDispatches();
-          submitBtn.disabled = false;
         } else if (res.needsConfirmation) {
           renderPreview(res);
-          submitBtn.disabled = false;
         } else {
           alert('送出失敗：' + res.error);
-          submitBtn.disabled = false;
         }
       }).catch(function (err) {
         alert('連線異常，請稍後再試一次：' + err.message);
-        submitBtn.disabled = false;
-      });
+      }).then(restoreSubmitBtn);
     }
   </script>
 </body>
