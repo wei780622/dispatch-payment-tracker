@@ -44,3 +44,36 @@ function callApi(action, payload, retriesLeft) {
 function getProjectFromUrl() {
   return new URLSearchParams(window.location.search).get('project');
 }
+
+// --- 載入中視覺回饋小工具（純顯示用，不影響任何資料邏輯）---
+// callApi 遇到 Google 端間歇性變慢時會自動重試，等待時間可能拉長到好幾秒，
+// 沒有任何提示的話畫面會看起來像當機。這裡統一處理三種情境：按鈕、下拉選單、表格區塊。
+
+// 按鈕點下去到 API 回應之間，改成灰階＋文字提示；用法：
+//   const restore = setBtnLoading(btn, '刪除中…');
+//   callApi(...).then(...).finally(restore);
+function setBtnLoading(btn, loadingText) {
+  var original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = (loadingText || '處理中…');
+  return function restore() {
+    btn.disabled = false;
+    btn.textContent = original;
+  };
+}
+
+// 下拉選單資料還沒回來之前，先放一個反灰的「載入中…」選項，取代空白選單
+function setSelectLoading(select) {
+  select.disabled = true;
+  select.innerHTML = '<option disabled selected>載入中…</option>';
+}
+
+function clearSelectLoading(select) {
+  select.disabled = false;
+  select.innerHTML = '';
+}
+
+// 表格/清單區塊重新整理時，先顯示「載入中…」而不是直接清空
+function setTableLoading(tbody, colSpan) {
+  tbody.innerHTML = '<tr><td colspan="' + colSpan + '" class="loadingRow"><span class="spinner"></span>載入中…</td></tr>';
+}
