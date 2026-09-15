@@ -19,19 +19,28 @@
     background: #f0f1f4;
     margin: 0;
     padding: 24px 16px 48px;
+    animation: pageFadeIn .35s ease;
   }
+  body.leaving { animation: pageFadeOut .16s ease forwards; }
+  @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes cardEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
   .topBar { max-width: 900px; margin: 0 auto 12px; }
   .homeBtn {
     display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
     color: #fff; background: var(--accent); padding: 9px 16px; border-radius: 999px;
     font-size: 14px; font-weight: 600; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    transition: transform .15s ease, box-shadow .15s ease;
   }
-  .homeBtn:active { opacity: 0.85; }
+  .homeBtn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18); }
+  .homeBtn:active { opacity: 0.85; transform: translateY(0); }
 
   .card {
     max-width: 900px; margin: 0 auto; background: #fff; border-radius: 16px;
     padding: 4px 24px 28px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07); overflow: hidden;
+    animation: cardEnter .45s cubic-bezier(.16, 1, .3, 1) both;
   }
   .card::before {
     content: ""; display: block; margin: 0 -24px 20px; height: 6px; background: var(--accent);
@@ -53,11 +62,15 @@
   #searchBtn {
     border: none; border-radius: 8px; padding: 8px 20px; background: var(--accent);
     color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
   }
   #searchBtn:disabled { opacity: 0.6; cursor: default; }
+  #searchBtn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); }
+  #searchBtn:not(:disabled):active { transform: translateY(0); }
 
   #emptyState {
     display: none; margin: 28px 0; text-align: center; color: #86868b; font-size: 14px;
+    animation: rowIn .3s ease;
   }
 
   .tableWrap { overflow-x: auto; margin-top: 20px; }
@@ -69,8 +82,9 @@
     position: sticky; top: 0;
   }
   tbody td { padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 14px; }
+  tbody tr { animation: rowIn .25s ease both; }
   tbody tr:nth-child(even) { background: #fafbfc; }
-  tbody tr:hover { background: var(--accent-soft); }
+  tbody tr:hover { background: var(--accent-soft); transition: background .15s ease; }
   td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10),
   th:nth-child(7), th:nth-child(8), th:nth-child(9), th:nth-child(10) { text-align: right; }
   td:last-child, th:last-child { text-align: center; }
@@ -79,7 +93,9 @@
   .row-actions button {
     border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600;
     border: 1.5px solid; cursor: pointer; background: #fff;
+    transition: transform .15s ease, background .15s ease;
   }
+  .row-actions button:not(:disabled):hover { transform: translateY(-1px); }
   .editBtn { color: var(--accent); border-color: var(--accent); }
   .editBtn:hover { background: var(--accent-soft); }
   .deleteBtn { color: #d92d20; border-color: #d92d20; }
@@ -93,7 +109,9 @@
   .saveBtn {
     border: none; border-radius: 8px; padding: 6px 16px; background: var(--accent);
     color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: transform .15s ease;
   }
+  .saveBtn:not(:disabled):hover { transform: translateY(-1px); }
 
   .spinner {
     display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px;
@@ -102,6 +120,14 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .loadingRow { text-align: center !important; color: #86868b; padding: 20px 8px !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
 </style>
 </head>
 <body>

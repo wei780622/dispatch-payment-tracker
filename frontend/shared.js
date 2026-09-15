@@ -77,3 +77,19 @@ function clearSelectLoading(select) {
 function setTableLoading(tbody, colSpan) {
   tbody.innerHTML = '<tr><td colspan="' + colSpan + '" class="loadingRow"><span class="spinner"></span>載入中…</td></tr>';
 }
+
+// 頁面切換的淡出效果：點站內連結時先讓畫面淡出，再真的換頁，
+// 搭配各頁 <style> 裡的 body.leaving 動畫使用。
+function initPageTransitions() {
+  document.addEventListener('click', function (evt) {
+    const a = evt.target.closest('a[href]');
+    if (!a) return;
+    const url = a.getAttribute('href');
+    if (!url || url.charAt(0) === '#' || /^https?:\/\//.test(url) || a.target === '_blank') return;
+    if (evt.metaKey || evt.ctrlKey || evt.shiftKey || evt.button !== 0) return;
+    evt.preventDefault();
+    document.body.classList.add('leaving');
+    setTimeout(function () { window.location.href = url; }, 160);
+  });
+}
+document.addEventListener('DOMContentLoaded', initPageTransitions);

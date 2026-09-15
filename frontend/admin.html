@@ -5,16 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>管理後台</title>
 <style>
-  body { font-family: -apple-system, "PingFang TC", sans-serif; background: #f5f5f7; margin: 0; padding: 24px 16px; }
-  .card { max-width: 960px; margin: 0 auto 24px; background: #fff; border-radius: 14px; padding: 24px; }
+  body {
+    font-family: -apple-system, "PingFang TC", sans-serif; background: #f5f5f7; margin: 0; padding: 24px 16px;
+    animation: pageFadeIn .35s ease;
+  }
+  body.leaving { animation: pageFadeOut .16s ease forwards; }
+  @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes cardEnter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .card {
+    max-width: 960px; margin: 0 auto 24px; background: #fff; border-radius: 14px; padding: 24px;
+    animation: cardEnter .4s cubic-bezier(.16, 1, .3, 1) both;
+  }
+  .card:nth-of-type(1) { animation-delay: 0ms; }
+  .card:nth-of-type(2) { animation-delay: 40ms; }
+  .card:nth-of-type(3) { animation-delay: 80ms; }
+  .card:nth-of-type(4) { animation-delay: 120ms; }
+  .card:nth-of-type(5) { animation-delay: 160ms; }
+  .card:nth-of-type(6) { animation-delay: 200ms; }
   h1 { font-size: 20px; }
   h2 { font-size: 16px; border-top: 1px solid #eee; padding-top: 16px; margin-top: 24px; }
   label { display: inline-block; margin-right: 12px; font-weight: 600; }
-  input, select { padding: 6px; border-radius: 8px; border: 1px solid #ccc; margin-right: 12px; }
+  input, select {
+    padding: 6px; border-radius: 8px; border: 1px solid #ccc; margin-right: 12px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  input:focus, select:focus { outline: none; border-color: #0071e3; box-shadow: 0 0 0 3px #eaf3ff; }
   table { width: 100%; border-collapse: collapse; margin-top: 16px; }
   th, td { border-bottom: 1px solid #eee; padding: 6px; text-align: left; font-size: 13px; }
-  #loginGate { max-width: 320px; margin: 80px auto; text-align: center; }
+  tbody tr { animation: rowIn .22s ease both; }
+  #loginGate { max-width: 320px; margin: 80px auto; text-align: center; animation: cardEnter .4s cubic-bezier(.16, 1, .3, 1) both; }
+  button { transition: transform .15s ease, box-shadow .15s ease; }
   button:disabled { opacity: 0.6; cursor: default; }
+  button:not(:disabled):hover { transform: translateY(-1px); }
+  button:not(:disabled):active { transform: translateY(0); }
 
   .spinner {
     display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px;
@@ -24,6 +50,14 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .loadingRow { text-align: center !important; color: #86868b; padding: 20px 8px !important; }
   .loadingHint { color: #86868b; font-size: 13px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
 </style>
 </head>
 <body>
