@@ -5,34 +5,124 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>我的派工紀錄</title>
 <style>
-  body { font-family: -apple-system, "PingFang TC", sans-serif; background: #f5f5f7; margin: 0; padding: 24px 16px; }
-  .card { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 14px; padding: 24px; }
-  label { display: inline-block; margin-right: 12px; font-weight: 600; }
-  select, input[type="month"] { padding: 6px; border-radius: 8px; border: 1px solid #ccc; }
-  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; font-size: 14px; }
-  .row-actions button { margin-right: 6px; }
-  .edit-form input { width: 90px; padding: 4px; margin-right: 6px; }
+  :root {
+    --accent: #0071e3;
+    --accent-soft: #eaf3ff;
+  }
+  body[data-project="HDC"] {
+    --accent: #2e8b45;
+    --accent-soft: #eaf7ee;
+  }
+
+  body {
+    font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: #f0f1f4;
+    margin: 0;
+    padding: 24px 16px 48px;
+  }
+
+  .topBar { max-width: 900px; margin: 0 auto 12px; }
+  .homeBtn {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    color: #fff; background: var(--accent); padding: 9px 16px; border-radius: 999px;
+    font-size: 14px; font-weight: 600; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  }
+  .homeBtn:active { opacity: 0.85; }
+
+  .card {
+    max-width: 900px; margin: 0 auto; background: #fff; border-radius: 16px;
+    padding: 4px 24px 28px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07); overflow: hidden;
+  }
+  .card::before {
+    content: ""; display: block; margin: 0 -24px 20px; height: 6px; background: var(--accent);
+  }
+
+  h1 { font-size: 20px; margin: 0 0 16px; color: #1d1d1f; }
+
+  .filterBar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+    padding: 14px 16px; background: #f7f8fa; border-radius: 10px;
+  }
+  .filterBar label { font-weight: 600; color: #1d1d1f; }
+  .filterBar select, .filterBar input[type="month"] {
+    padding: 7px 10px; border-radius: 8px; border: 1px solid #d5d5da; font-size: 14px; background: #fff;
+  }
+  .filterBar select:focus, .filterBar input:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  #searchBtn {
+    border: none; border-radius: 8px; padding: 8px 20px; background: var(--accent);
+    color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  #searchBtn:disabled { opacity: 0.6; cursor: default; }
+
+  #emptyState {
+    display: none; margin: 28px 0; text-align: center; color: #86868b; font-size: 14px;
+  }
+
+  .tableWrap { overflow-x: auto; margin-top: 20px; }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  thead th {
+    background: var(--accent-soft); color: var(--accent); text-align: left;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase;
+    padding: 10px 8px; border-bottom: 2px solid var(--accent);
+    position: sticky; top: 0;
+  }
+  tbody td { padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 14px; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: var(--accent-soft); }
+  td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10),
+  th:nth-child(7), th:nth-child(8), th:nth-child(9), th:nth-child(10) { text-align: right; }
+  td:last-child, th:last-child { text-align: center; }
+
+  .row-actions { display: flex; gap: 6px; justify-content: center; }
+  .row-actions button {
+    border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600;
+    border: 1.5px solid; cursor: pointer; background: #fff;
+  }
+  .editBtn { color: var(--accent); border-color: var(--accent); }
+  .editBtn:hover { background: var(--accent-soft); }
+  .deleteBtn { color: #d92d20; border-color: #d92d20; }
+  .deleteBtn:hover { background: #fdeceb; }
+
+  .edit-form { background: #f7f8fa; padding: 12px 8px; }
+  .edit-form label { font-size: 13px; font-weight: 600; margin-right: 4px; }
+  .edit-form input {
+    width: 90px; padding: 5px 8px; margin-right: 14px; border-radius: 6px; border: 1px solid #d5d5da;
+  }
+  .saveBtn {
+    border: none; border-radius: 8px; padding: 6px 16px; background: var(--accent);
+    color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
 </style>
 </head>
 <body>
+  <div class="topBar">
+    <a class="homeBtn" href="index.html">&larr; 回首頁</a>
+  </div>
   <div class="card">
     <h1>我的派工紀錄</h1>
-    <label>姓名</label>
-    <select id="engineerSelect"></select>
-    <label>月份</label>
-    <input type="month" id="monthInput">
-    <button id="searchBtn">查詢</button>
+    <div class="filterBar">
+      <label>姓名</label>
+      <select id="engineerSelect"></select>
+      <label>月份</label>
+      <input type="month" id="monthInput">
+      <button id="searchBtn">查詢</button>
+    </div>
 
-    <table id="recordsTable">
-      <thead>
-        <tr>
-          <th>日期</th><th>DispatchNo</th><th>Project</th><th>角色</th>
-          <th>上班</th><th>下班</th><th>加班</th><th>交通</th><th>住宿</th><th>合計</th><th></th>
-        </tr>
-      </thead>
-      <tbody id="recordsBody"></tbody>
-    </table>
+    <p id="emptyState">這個月查無紀錄</p>
+
+    <div class="tableWrap">
+      <table id="recordsTable">
+        <thead>
+          <tr>
+            <th>日期</th><th>DispatchNo</th><th>Project</th><th>角色</th>
+            <th>上班</th><th>下班</th><th>加班</th><th>交通</th><th>住宿</th><th>合計</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody"></tbody>
+      </table>
+    </div>
   </div>
 
   <script src="shared.js"></script>
@@ -43,6 +133,7 @@
     document.addEventListener('DOMContentLoaded', init);
 
     function init() {
+      document.body.dataset.project = project;
       callApi('getEngineers', { project: project }).then(function (res) {
         const select = document.getElementById('engineerSelect');
         (res.engineers || []).forEach(function (name) {
@@ -61,6 +152,9 @@
     function search() {
       const name = document.getElementById('engineerSelect').value;
       const yearMonth = document.getElementById('monthInput').value;
+      const btn = document.getElementById('searchBtn');
+      btn.disabled = true;
+      btn.textContent = '查詢中…';
       callApi('getMyRecords', { project: project, name: name, yearMonth: yearMonth }).then(function (res) {
         if (!res.ok) {
           alert('查詢失敗：' + res.error);
@@ -72,12 +166,16 @@
         renderTable();
       }).catch(function (err) {
         alert('連線異常，請稍後再試一次：' + err.message);
+      }).then(function () {
+        btn.disabled = false;
+        btn.textContent = '查詢';
       });
     }
 
     function renderTable() {
       const body = document.getElementById('recordsBody');
       body.innerHTML = '';
+      document.getElementById('emptyState').style.display = currentRecords.length === 0 ? 'block' : 'none';
       currentRecords.forEach(function (r) {
         const tr = document.createElement('tr');
         tr.dataset.recordId = r['RecordID'];
@@ -103,9 +201,9 @@
       const editRow = document.createElement('tr');
       editRow.innerHTML =
         '<td colspan="11" class="edit-form">' +
-        '交通費 <input type="number" class="editTransport" value="' + record['交通費'] + '">' +
-        '住宿費 <input type="number" class="editLodging" value="' + record['住宿費'] + '">' +
-        '加班時數 <input type="number" class="editOvertime" value="' + record['加班時數'] + '">' +
+        '<label>交通費</label><input type="number" class="editTransport" value="' + record['交通費'] + '">' +
+        '<label>住宿費</label><input type="number" class="editLodging" value="' + record['住宿費'] + '">' +
+        '<label>加班時數</label><input type="number" class="editOvertime" value="' + record['加班時數'] + '">' +
         '<button class="saveBtn">儲存</button>' +
         '</td>';
       tr.parentNode.insertBefore(editRow, tr.nextSibling);
