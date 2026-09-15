@@ -21,7 +21,7 @@ function setupSheets() {
   ['SDI', 'HDC'].forEach(function (project) {
     getOrCreateSheet_(ss, project + '_紀錄', HEADERS);
     getOrCreateSheet_(ss, project + '_工程師', ['姓名', '啟用中']);
-    getOrCreateSheet_(ss, project + '_案場', ['案場名稱', '地址', '啟用中']);
+    getOrCreateSheet_(ss, project + '_案場', ['案場名稱', '地址', '啟用中', '中文名稱']);
   });
   var settingsSheet = getOrCreateSheet_(ss, '設定', ['專案', 'Dispatch No. 前綴', 'Engineer 單價', 'Worker 單價']);
   if (settingsSheet.getLastRow() < 3) {
@@ -111,6 +111,23 @@ function migrateAddRouteColumns() {
     }
   });
   Logger.log('migrateAddRouteColumns 完成');
+}
+
+function migrateAddSiteChineseNameColumn() {
+  var ss = getSpreadsheet_();
+  ['SDI', 'HDC'].forEach(function (project) {
+    var sheet = ss.getSheetByName(project + '_案場');
+    if (!sheet) return;
+    var lastCol = sheet.getLastColumn();
+    var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    if (headers.indexOf('中文名稱') === -1) {
+      if (sheet.getMaxColumns() < lastCol + 1) {
+        sheet.insertColumnsAfter(sheet.getMaxColumns(), 1);
+      }
+      sheet.getRange(1, lastCol + 1).setValue('中文名稱');
+    }
+  });
+  Logger.log('migrateAddSiteChineseNameColumn 完成');
 }
 
 function readSheetAsObjects_(sheet) {
@@ -460,13 +477,24 @@ function handleAdminToggleEngineer(payload) {
   return { ok: true };
 }
 
+function getSiteChineseNameColumn_(sheet) {
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var col = headers.indexOf('中文名稱');
+  return col === -1 ? -1 : col + 1;
+}
+
 function handleAdminGetSites(payload) {
   assertAdminPin_(payload);
   var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName(payload.project + '_案場');
   var rows = readSheetAsObjects_(sheet);
   var sites = rows.map(function (r) {
-    return { name: r['案場名稱'], address: r['地址'], active: r['啟用中'] === true || r['啟用中'] === 'TRUE' };
+    return {
+      name: r['案場名稱'],
+      address: r['地址'],
+      active: r['啟用中'] === true || r['啟用中'] === 'TRUE',
+      chineseName: r['中文名稱'] || ''
+    };
   });
   return { ok: true, sites: sites };
 }
@@ -475,12 +503,16 @@ function handleAdminAddSite(payload) {
   assertAdminPin_(payload);
   var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName(payload.project + '_案場');
+  var chineseNameCol = getSiteChineseNameColumn_(sheet);
   var rowIndex = findNameRowIndex_(sheet, '案場名稱', payload.name);
   if (rowIndex === -1) {
-    sheet.appendRow([payload.name, payload.address, true]);
+    sheet.appendRow([payload.name, payload.address, true, payload.chineseName || '']);
   } else {
     sheet.getRange(rowIndex, 2).setValue(payload.address);
     sheet.getRange(rowIndex, 3).setValue(true);
+    if (chineseNameCol !== -1) {
+      sheet.getRange(rowIndex, chineseNameCol).setValue(payload.chineseName || '');
+    }
   }
   return { ok: true };
 }
@@ -495,6 +527,56 @@ function handleAdminToggleSite(payload) {
   }
   sheet.getRange(rowIndex, 3).setValue(!!payload.active);
   return { ok: true };
+}
+
+function handleAdminUpdateSite(payload) {
+  assertAdminPin_(payload);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.project + '_案場');
+    var rowIndex = findNameRowIndex_(sheet, '案場名稱', payload.name);
+    if (rowIndex === -1) {
+      return { ok: false, error: '找不到案場：' + payload.name };
+    }
+    var edits = payload.edits || {};
+    var newName = edits.name != null ? String(edits.name).trim() : payload.name;
+    var newAddress = edits.address != null ? String(edits.address).trim() : '';
+    if (!newName || !newAddress) {
+      return { ok: false, error: '案場名稱與地址不能為空' };
+    }
+    if (newName !== payload.name && findNameRowIndex_(sheet, '案場名稱', newName) !== -1) {
+      return { ok: false, error: '已存在同名案場：' + newName };
+    }
+    sheet.getRange(rowIndex, 1).setValue(newName);
+    sheet.getRange(rowIndex, 2).setValue(newAddress);
+    var chineseNameCol = getSiteChineseNameColumn_(sheet);
+    if (chineseNameCol !== -1) {
+      sheet.getRange(rowIndex, chineseNameCol).setValue(edits.chineseName || '');
+    }
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleAdminDeleteSite(payload) {
+  assertAdminPin_(payload);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(payload.project + '_案場');
+    var rowIndex = findNameRowIndex_(sheet, '案場名稱', payload.name);
+    if (rowIndex === -1) {
+      return { ok: false, error: '找不到案場：' + payload.name };
+    }
+    sheet.deleteRow(rowIndex);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function handleExportMonthlyExcel(payload) {
@@ -657,6 +739,8 @@ function doPost(e) {
     adminGetSites: handleAdminGetSites,
     adminAddSite: handleAdminAddSite,
     adminToggleSite: handleAdminToggleSite,
+    adminUpdateSite: handleAdminUpdateSite,
+    adminDeleteSite: handleAdminDeleteSite,
     exportMonthlyExcel: handleExportMonthlyExcel,
     adminExportRouteList: handleAdminExportRouteList,
     adminUploadInvoice: handleAdminUploadInvoice,

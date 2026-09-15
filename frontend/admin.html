@@ -78,8 +78,14 @@
       <button id="siteRefreshBtn">重新整理</button>
       <input type="text" id="siteNewName" placeholder="案場名稱">
       <input type="text" id="siteNewAddress" placeholder="地址">
+      <input type="text" id="siteNewChineseName" placeholder="中文名稱（選填）">
       <button id="siteAddBtn">新增</button>
-      <table id="siteTable"><tbody id="siteBody"></tbody></table>
+      <table id="siteTable">
+        <thead>
+          <tr><th>案場名稱</th><th>地址</th><th>中文名稱</th><th>狀態</th><th></th></tr>
+        </thead>
+        <tbody id="siteBody"></tbody>
+      </table>
     </div>
 
     <div class="card">
@@ -589,11 +595,13 @@
     document.getElementById('siteAddBtn').addEventListener('click', function () {
       const name = document.getElementById('siteNewName').value.trim();
       const address = document.getElementById('siteNewAddress').value.trim();
+      const chineseName = document.getElementById('siteNewChineseName').value.trim();
       if (!name || !address) return;
-      adminCallApi('adminAddSite', { project: document.getElementById('siteProject').value, name: name, address: address })
+      adminCallApi('adminAddSite', { project: document.getElementById('siteProject').value, name: name, address: address, chineseName: chineseName })
         .then(function () {
           document.getElementById('siteNewName').value = '';
           document.getElementById('siteNewAddress').value = '';
+          document.getElementById('siteNewChineseName').value = '';
           refreshSites();
         })
         .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
@@ -606,21 +614,85 @@
           const body = document.getElementById('siteBody');
           body.innerHTML = '';
           (res.sites || []).forEach(function (s) {
-            const tr = document.createElement('tr');
-            const nameTd = document.createElement('td');
-            nameTd.textContent = s.name + '（' + s.address + '）';
-            const toggleTd = document.createElement('td');
-            const btn = document.createElement('button');
-            btn.textContent = s.active ? '停用' : '啟用';
-            btn.addEventListener('click', function () {
-              adminCallApi('adminToggleSite', { project: document.getElementById('siteProject').value, name: s.name, active: !s.active })
-                .then(refreshSites);
-            });
-            toggleTd.appendChild(btn);
-            tr.appendChild(nameTd);
-            tr.appendChild(toggleTd);
-            body.appendChild(tr);
+            renderSiteRow(s);
           });
+        })
+        .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+    }
+
+    function renderSiteRow(s) {
+      const body = document.getElementById('siteBody');
+      const tr = document.createElement('tr');
+      [s.name, s.address, s.chineseName || '-', s.active ? '啟用中' : '已停用'].forEach(function (value) {
+        const td = document.createElement('td');
+        td.textContent = value;
+        tr.appendChild(td);
+      });
+      const actionTd = document.createElement('td');
+      const toggleBtn = document.createElement('button');
+      toggleBtn.textContent = s.active ? '停用' : '啟用';
+      toggleBtn.addEventListener('click', function () {
+        adminCallApi('adminToggleSite', { project: document.getElementById('siteProject').value, name: s.name, active: !s.active })
+          .then(refreshSites);
+      });
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '編輯';
+      editBtn.addEventListener('click', function () { showSiteEditForm(tr, s); });
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '刪除';
+      deleteBtn.addEventListener('click', function () { deleteSite(s); });
+      actionTd.appendChild(toggleBtn);
+      actionTd.appendChild(editBtn);
+      actionTd.appendChild(deleteBtn);
+      tr.appendChild(actionTd);
+      body.appendChild(tr);
+    }
+
+    function showSiteEditForm(tr, site) {
+      const editRow = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 5;
+      const nameInput = document.createElement('input');
+      nameInput.value = site.name;
+      const addressInput = document.createElement('input');
+      addressInput.value = site.address;
+      const chineseNameInput = document.createElement('input');
+      chineseNameInput.value = site.chineseName || '';
+      [
+        ['案場名稱', nameInput],
+        ['地址', addressInput],
+        ['中文名稱', chineseNameInput]
+      ].forEach(function (pair) {
+        const label = document.createElement('label');
+        label.textContent = pair[0];
+        td.appendChild(label);
+        td.appendChild(pair[1]);
+      });
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = '儲存';
+      saveBtn.addEventListener('click', function () {
+        adminCallApi('adminUpdateSite', {
+          project: document.getElementById('siteProject').value,
+          name: site.name,
+          edits: { name: nameInput.value.trim(), address: addressInput.value.trim(), chineseName: chineseNameInput.value.trim() }
+        }).then(function (res) {
+          if (res.ok) { refreshSites(); } else { alert('儲存失敗：' + res.error); }
+        }).catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
+      });
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = '取消';
+      cancelBtn.addEventListener('click', function () { editRow.remove(); });
+      td.appendChild(saveBtn);
+      td.appendChild(cancelBtn);
+      editRow.appendChild(td);
+      tr.parentNode.insertBefore(editRow, tr.nextSibling);
+    }
+
+    function deleteSite(site) {
+      if (!confirm('確定要刪除案場「' + site.name + '」嗎？此動作無法復原（不影響過去已經建立的派工紀錄）。')) return;
+      adminCallApi('adminDeleteSite', { project: document.getElementById('siteProject').value, name: site.name })
+        .then(function (res) {
+          if (res.ok) { refreshSites(); } else { alert('刪除失敗：' + res.error); }
         })
         .catch(function (err) { alert('連線異常，請稍後再試一次：' + err.message); });
     }
