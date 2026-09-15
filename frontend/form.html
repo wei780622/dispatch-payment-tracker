@@ -297,7 +297,7 @@
           const opt = document.createElement('option');
           opt.value = site.name;
           opt.dataset.address = site.address;
-          opt.textContent = site.name;
+          opt.textContent = site.chineseName ? (site.name + '（' + site.chineseName + '）') : site.name;
           select.appendChild(opt);
         });
         if (select.options.length > 0) {

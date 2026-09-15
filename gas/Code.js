@@ -157,7 +157,7 @@ function handleGetSites(payload) {
   var rows = readSheetAsObjects_(sheet);
   var sites = rows
     .filter(function (r) { return r['啟用中'] === true || r['啟用中'] === 'TRUE'; })
-    .map(function (r) { return { name: r['案場名稱'], address: r['地址'] }; });
+    .map(function (r) { return { name: r['案場名稱'], address: r['地址'], chineseName: r['中文名稱'] || '' }; });
   return { ok: true, sites: sites };
 }
 
