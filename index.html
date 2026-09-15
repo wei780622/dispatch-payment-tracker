@@ -10,8 +10,14 @@
     background: #f5f5f7;
     margin: 0;
     padding: 40px 16px;
+    animation: pageFadeIn .4s ease;
   }
-  h1 { text-align: center; color: #1d1d1f; }
+  body.leaving { animation: pageFadeOut .18s ease forwards; }
+  @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  h1 { text-align: center; color: #1d1d1f; animation: riseIn .5s ease both; }
   .buttons {
     max-width: 480px;
     margin: 40px auto;
@@ -28,9 +34,33 @@
     font-size: 20px;
     font-weight: 600;
     color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+    transition: transform .18s ease, box-shadow .18s ease;
+    animation: riseIn .5s ease both;
   }
+  .btn-project:nth-of-type(1) { animation-delay: .08s; }
+  .btn-project:nth-of-type(2) { animation-delay: .16s; }
+  .btn-project:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16); }
+  .btn-project:active { transform: translateY(0); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12); }
   .btn-sdi { background: #0071e3; }
   .btn-hdc { background: #347a3b; }
+
+  .myRecordsLinks {
+    text-align: center;
+    margin-top: 24px;
+    animation: riseIn .5s ease both;
+    animation-delay: .24s;
+  }
+  .myRecordsLinks a { color: #0071e3; text-decoration: none; font-weight: 600; transition: opacity .15s ease; }
+  .myRecordsLinks a:hover { opacity: 0.7; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -39,8 +69,21 @@
     <a class="btn-project btn-sdi" href="form.html?project=SDI">SAMSUNG SDI 維運表單</a>
     <a class="btn-project btn-hdc" href="form.html?project=HDC">HANGANG NCS &amp; HDC 維運表單</a>
   </div>
-  <p style="text-align:center; margin-top:24px;">
+  <p class="myRecordsLinks">
     <a href="my.html?project=SDI">SDI 我的紀錄</a> ｜ <a href="my.html?project=HDC">HDC 我的紀錄</a>
   </p>
+
+  <script>
+    document.addEventListener('click', function (evt) {
+      const a = evt.target.closest('a[href]');
+      if (!a) return;
+      const url = a.getAttribute('href');
+      if (!url || url.charAt(0) === '#' || /^https?:\/\//.test(url) || a.target === '_blank') return;
+      if (evt.metaKey || evt.ctrlKey || evt.shiftKey || evt.button !== 0) return;
+      evt.preventDefault();
+      document.body.classList.add('leaving');
+      setTimeout(function () { window.location.href = url; }, 160);
+    });
+  </script>
 </body>
 </html>

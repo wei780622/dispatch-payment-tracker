@@ -19,7 +19,13 @@
     background: #f0f1f4;
     margin: 0;
     padding: 24px 16px 48px;
+    animation: pageFadeIn .35s ease;
   }
+  body.leaving { animation: pageFadeOut .16s ease forwards; }
+  @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes cardEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes popIn { 0% { opacity: 0; transform: scale(.92); } 100% { opacity: 1; transform: scale(1); } }
 
   .topBar {
     max-width: 560px;
@@ -37,8 +43,10 @@
     font-size: 14px;
     font-weight: 600;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    transition: transform .15s ease, box-shadow .15s ease;
   }
-  .homeBtn:active { opacity: 0.85; }
+  .homeBtn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18); }
+  .homeBtn:active { opacity: 0.85; transform: translateY(0); }
 
   .card {
     max-width: 560px;
@@ -49,6 +57,7 @@
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
     overflow: hidden;
     position: relative;
+    animation: cardEnter .45s cubic-bezier(.16, 1, .3, 1) both;
   }
   .card::before {
     content: "";
@@ -90,10 +99,15 @@
     border-radius: 10px; line-height: 1.8; font-size: 14px;
   }
   #confirmHoursBox { margin-top: 12px; padding: 12px; background: #fff3cd; border-radius: 8px; display: none; }
-  #successMessage { margin-top: 16px; padding: 12px; background: #d4f7dc; border-radius: 8px; display: none; text-align: center; font-weight: 600; }
+  #successMessage {
+    margin-top: 16px; padding: 12px; background: #d4f7dc; border-radius: 8px; display: none;
+    text-align: center; font-weight: 600; animation: popIn .35s cubic-bezier(.34, 1.56, .64, 1);
+  }
 
-  button { border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  button { border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
   button:disabled { opacity: 0.6; cursor: default; }
+  button:not(:disabled):hover { transform: translateY(-1px); }
+  button:not(:disabled):active { transform: translateY(0); }
 
   .spinner {
     display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px;
@@ -115,6 +129,15 @@
     margin-top: 24px; width: 100%; padding: 15px;
     background: var(--accent); color: #fff; font-size: 16px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  #submitBtn:not(:disabled):hover { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
   }
 </style>
 </head>
